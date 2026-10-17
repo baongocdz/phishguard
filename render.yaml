@@ -1,0 +1,21 @@
+# Cấu hình deploy lên Render (https://render.com) — dùng tính năng "Blueprint".
+services:
+  - type: web
+    name: phishguard-backend
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      # Chuỗi kết nối MongoDB Atlas (mongodb+srv://...). Nhập trên dashboard Render.
+      - key: PHISHGUARD_MONGO_URI
+        sync: false
+      # Gemini API key. Nhập trên dashboard Render, không ghi vào code.
+      - key: PHISHGUARD_GEMINI_API_KEY
+        sync: false
+      - key: PHISHGUARD_GEMINI_MODEL
+        value: gemini-flash-latest
