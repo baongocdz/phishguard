@@ -3,6 +3,7 @@ services:
   - type: web
     name: phishguard-backend
     runtime: python
+    rootDir: backend
     plan: free
     region: singapore
     buildCommand: pip install -r requirements.txt

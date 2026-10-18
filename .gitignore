@@ -1,4 +1,12 @@
-.venv
-__pycache__
-.pytest_cache
+# Backend (Python)
+.venv/
+__pycache__/
+.pytest_cache/
 .env
+
+# Extension (Node)
+node_modules/
+dist/
+
+# Cấu hình cá nhân của Claude Code
+.claude/settings.local.json

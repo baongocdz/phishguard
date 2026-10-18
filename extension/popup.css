@@ -1,0 +1,9 @@
+body { width: 320px; margin: 0; padding: 12px 14px; font: 14px/1.4 system-ui, sans-serif; }
+h1 { font-size: 16px; margin: 0 0 8px; }
+.url { word-break: break-all; color: #555; font-size: 12px; margin: 0 0 8px; }
+.chip { display: inline-block; padding: 2px 10px; border-radius: 12px; color: #fff; margin: 0 0 6px; }
+.chip.safe { background: #2e7d32; }
+.chip.suspicious { background: #ef6c00; }
+.chip.phishing { background: #c62828; }
+.chip.none { background: #757575; }
+ul { margin: 4px 0 0 18px; padding: 0; }
