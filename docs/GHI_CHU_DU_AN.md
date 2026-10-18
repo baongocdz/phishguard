@@ -124,7 +124,18 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
   Precision 0.974, Recall 0.958, F1 0.966, ROC-AUC 0.996, chặn nhầm 1.6%. Báo cáo: `eval/results/TEXT_REPORT.md`.
   Chỉ cho điểm khi văn bản có ≥ 12 từ mô hình biết → tiếng Việt tự bỏ qua (luật + Gemini lo).
 
-### Test
+### Test (4 lớp)
+| Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
+|---|---|---|---|
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing (giả lập) | 53 |
+| Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo, affiliate, "Mở lần này", công tắc, popup | 13 |
+| Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), báo sai, /about, dashboard, giao diện điện thoại 390px | 13 |
+| Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
+
+- **CI (GitHub Actions)**: `.github/workflows/ci.yml` tự chạy pytest + typecheck/build mỗi lần push. Xem tab **Actions** trên GitHub.
+  Test trình duyệt (e2e, web-test) chỉ chạy ở máy (dùng Chrome for Testing do Puppeteer tải về `~/.cache/puppeteer`).
+- Thêm `HEADFUL=1` trước lệnh e2e/web-test để xem trình duyệt chạy.
+
 - Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **43 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
@@ -165,6 +176,8 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Mất `.venv` sau khi dời thư mục | venv gắn đường dẫn cũ | `python -m venv .venv` rồi `pip install -r requirements.txt` |
 | Thêm key Safe Browsing mà không có tác dụng | Tên field `safe_browsing_api_key` ≠ tên biến `PHISHGUARD_SAFE_BROWSING_KEY` | Đổi field thành `safe_browsing_key`; có test so tên biến trong render.yaml/.env.example với Settings |
 | Render bản cũ báo lỗi 500 với kết quả do bản mới ghi vào cache | Hai phiên bản dùng chung cache Atlas, bản cũ không hiểu nguồn mới | Deploy bản mới (hoặc xóa collection `cache`) |
+| Trang quản trị modem 192.168.1.1 bị báo lừa đảo 0.6 (phát hiện nhờ e2e) | Luật chấm "địa chỉ IP" + "HTTP có mật khẩu" | Địa chỉ mạng nội bộ (10.x, 172.16–31.x, 192.168.x, .local...) coi là an toàn, không gửi lên server. Không dùng `ip.is_private` (gồm cả dải 203.0.113.x). 127.0.0.1 vẫn chấm để demo |
+| Kết quả cũ trong cache không có phần giải thích | Cache lưu từ trước khi có `breakdown` | Khóa cache có phiên bản `CACHE_VERSION` trong `service.py` — **tăng lên khi đổi cách chấm** |
 | Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
 | Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
@@ -241,3 +254,8 @@ CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itx
 | `376619b` | Tên miền na ná + mở link rút gọn |
 | `ae0dbe9`, `42d0c72` | Mô hình học máy email/tin nhắn |
 | `19e3036` | Google Safe Browsing + lịch sử cảnh báo trong popup |
+| `4dcfc76` | Sửa lệch tên biến Safe Browsing |
+| `ea05148` | Script smoke test + hướng dẫn đổi key |
+| `5bee77b` | Test e2e extension; không xét lừa đảo thiết bị mạng nội bộ |
+| `47239ca` | Test trang web/dashboard; cache có phiên bản |
+| (CI) | GitHub Actions |

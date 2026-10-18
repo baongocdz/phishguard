@@ -1,5 +1,7 @@
 # PhishGuard
 
+[![CI](https://github.com/baongocdz/phishguard/actions/workflows/ci.yml/badge.svg)](https://github.com/baongocdz/phishguard/actions/workflows/ci.yml)
+
 Hệ thống phát hiện lừa đảo trực tuyến: **trang web giả mạo (phishing)**, **mã QR độc hại (quishing)**,
 **email lừa đảo** và **tin nhắn SMS/Zalo lừa đảo (smishing)**.
 
@@ -63,7 +65,7 @@ pip install -r requirements.txt
 copy .env.example .env               # rồi điền PHISHGUARD_MONGO_URI, PHISHGUARD_GEMINI_API_KEY, PHISHGUARD_ADMIN_TOKEN
 python -m scripts.seed               # nạp whitelist/blacklist mẫu
 uvicorn app.main:app --reload --port 8000
-pytest -q                            # 31 test, không cần MongoDB
+pytest -q                            # 53 test, không cần MongoDB
 
 # Đánh giá + huấn luyện lại mô hình
 pip install -r eval/requirements-eval.txt
