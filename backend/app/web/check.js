@@ -163,30 +163,93 @@ async function decodeQr(file) {
   return jsQR(data.data, data.width, data.height, { inversionAttempts: "attemptBoth" });
 }
 
+// Đã đọc được nội dung mã QR (từ ảnh hoặc camera): kiểm tra link bên trong.
+async function handleQrText(text) {
+  const u = parseUrl(text);
+  if (!u || !/^https?:$/.test(u.protocol)) {
+    const box = $("result");
+    box.className = "result suspicious";
+    box.replaceChildren(
+      el("p", {}, "Mã QR không chứa đường link web. Nội dung:"),
+      el("p", { class: "mono" }, text),
+      el("p", { class: "muted" }, "Cẩn thận nếu mã QR yêu cầu chuyển tiền, đăng nhập Wi-Fi lạ hoặc mở ứng dụng."),
+    );
+    return;
+  }
+  showLoading("Đã đọc mã QR, đang kiểm tra link…");
+  const r = await checkUrl(u, "qr");
+  showResult(r, { label: "Link trong mã QR", value: u.href, url: u.href, hostname: u.hostname });
+}
+
 async function handleQrFile(file) {
   if (!file || !file.type.startsWith("image/")) return showError("Hãy chọn một file ảnh.");
   showLoading("Đang đọc mã QR…");
   try {
     const code = await decodeQr(file);
     if (!code || !code.data) return showError("Không tìm thấy mã QR trong ảnh. Thử ảnh rõ hơn hoặc cắt sát mã QR.");
-    const u = parseUrl(code.data);
-    if (!u || !/^https?:$/.test(u.protocol)) {
-      const box = $("result");
-      box.className = "result suspicious";
-      box.replaceChildren(
-        el("p", {}, "Mã QR không chứa đường link web. Nội dung:"),
-        el("p", { class: "mono" }, code.data),
-        el("p", { class: "muted" }, "Cẩn thận nếu mã QR yêu cầu chuyển tiền, đăng nhập Wi-Fi lạ hoặc mở ứng dụng."),
-      );
-      return;
-    }
-    showLoading("Đã đọc mã QR, đang kiểm tra link…");
-    const r = await checkUrl(u, "qr");
-    showResult(r, { label: "Link trong mã QR", value: u.href, url: u.href, hostname: u.hostname });
+    await handleQrText(code.data);
   } catch (e) {
     showError(e);
   }
 }
+
+// ---------- Quét QR bằng camera (điện thoại: camera sau) ----------
+let camStream = null;
+
+function stopCamera() {
+  camStream?.getTracks().forEach((t) => t.stop());
+  camStream = null;
+  $("cam-box").classList.add("hidden");
+  $("cam-stop").classList.add("hidden");
+  $("cam-btn").classList.remove("hidden");
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return showError("Trình duyệt không hỗ trợ camera (cần mở trang bằng https).");
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+  } catch (e) {
+    return showError("Không mở được camera: hãy cho phép trang dùng camera rồi thử lại.");
+  }
+  const video = $("cam-video");
+  video.srcObject = camStream;
+  await video.play();
+  $("cam-box").classList.remove("hidden");
+  $("cam-stop").classList.remove("hidden");
+  $("cam-btn").classList.add("hidden");
+  $("cam-status").textContent = "Đưa mã QR vào khung…";
+  const canvas = $("qr-canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  const scan = async () => {
+    if (!camStream) return;
+    if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth) {
+      const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+      if (code?.data) {
+        stopCamera();
+        $("cam-status").textContent = "Đã đọc được mã QR.";
+        if (navigator.vibrate) navigator.vibrate(80);
+        try { await handleQrText(code.data); } catch (e) { showError(e); }
+        return;
+      }
+    }
+    requestAnimationFrame(scan);
+  };
+  requestAnimationFrame(scan);
+}
+$("cam-btn").addEventListener("click", startCamera);
+$("cam-stop").addEventListener("click", () => { stopCamera(); $("cam-status").textContent = ""; });
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { if (camStream) stopCamera(); }));
+
+// Cài như ứng dụng (PWA)
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 $("qr-file").addEventListener("change", (e) => handleQrFile(e.target.files[0]));
 const drop = $("qr-drop");
 ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, () => drop.classList.add("over")));

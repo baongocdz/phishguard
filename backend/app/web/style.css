@@ -100,3 +100,7 @@ table.compact td .ghost { padding: 2px 8px; font-size: 13px; }
 .bd-tag.age { background: #6d4c41; } .bd-tag.community { background: #ad1457; }
 .feed-row { margin-top: 6px; font-size: 13px; }
 .tag.openphish { color: #c62828; border-color: #f2b8b5; }
+/* Quét QR bằng camera */
+.cam { position: relative; margin-top: 12px; max-width: 480px; border-radius: 12px; overflow: hidden; background: #000; }
+.cam video { display: block; width: 100%; }
+.cam-frame { position: absolute; inset: 15%; border: 3px solid rgba(255,255,255,.85); border-radius: 12px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); }

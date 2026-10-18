@@ -87,6 +87,17 @@ async def home():
     return FileResponse(WEB_DIR / "index.html")
 
 
+@app.get("/manifest.webmanifest", include_in_schema=False)
+async def manifest():
+    return FileResponse(WEB_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    return FileResponse(WEB_DIR / "sw.js", media_type="text/javascript",
+                        headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/about", include_in_schema=False)
 async def about():
     return FileResponse(WEB_DIR / "about.html")

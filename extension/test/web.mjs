@@ -168,6 +168,56 @@ if (ADMIN) {
   });
 }
 
+await test("Cài như ứng dụng: manifest + service worker", async () => {
+  await page.goto(BASE + "/", { waitUntil: "networkidle0" });
+  const info = await page.evaluate(async () => {
+    const m = await (await fetch(document.querySelector('link[rel="manifest"]').href)).json();
+    const reg = await navigator.serviceWorker.ready;
+    return { name: m.short_name, icons: m.icons.length, display: m.display, sw: !!reg.active };
+  });
+  if (!info.sw || info.icons < 2 || info.display !== "standalone") throw new Error(JSON.stringify(info));
+  return `${info.name}, ${info.icons} icon, service worker chạy`;
+});
+
+await test("Quét QR bằng camera (camera giả phát video có mã QR)", async () => {
+  // Tạo video Y4M 640x480 có mã QR ở giữa để Chrome dùng làm camera giả.
+  const qr = QRCode.create("https://secure-vietcombank-xacminh.top/login", { errorCorrectionLevel: "M" });
+  const n = qr.modules.size, scale = 8, W = 640, H = 480;
+  const ox = Math.floor((W - n * scale) / 2), oy = Math.floor((H - n * scale) / 2);
+  const Y = Buffer.alloc(W * H, 235);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.modules.get(r, c)) continue;
+    for (let y = 0; y < scale; y++) Y.fill(16, (oy + r * scale + y) * W + ox + c * scale, (oy + r * scale + y) * W + ox + (c + 1) * scale);
+  }
+  const UV = Buffer.alloc((W / 2) * (H / 2) * 2, 128);
+  const frames = [];
+  for (let i = 0; i < 30; i++) frames.push(Buffer.from("FRAME\n"), Y, UV);
+  const file = join(mkdtempSync(join(tmpdir(), "pg-cam-")), "qr.y4m");
+  writeFileSync(file, Buffer.concat([Buffer.from(`YUV4MPEG2 W${W} H${H} F30:1 Ip A1:1 C420jpeg\n`), ...frames]));
+
+  const cam = await puppeteer.launch({
+    headless: !process.env.HEADFUL,
+    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-video-capture=${file}`],
+  });
+  try {
+    const p = await cam.newPage();
+    await p.goto(BASE + "/", { waitUntil: "networkidle0" });
+    await p.click('.tab[data-tab="qr"]');
+    await p.click("#cam-btn");
+    await p.waitForFunction(() => {
+      const r = document.getElementById("result");
+      return r && /An toàn|Đáng ngờ|Lừa đảo/.test(r.innerText);
+    }, { timeout: 30000 });
+    const r = await p.$eval("#result", (e) => ({ cls: e.className, text: e.innerText }));
+    const camOff = await p.$eval("#cam-box", (e) => e.classList.contains("hidden"));
+    if (!r.cls.includes("phishing") || !r.text.includes("secure-vietcombank-xacminh.top")) throw new Error(r.text.slice(0, 100));
+    if (!camOff) throw new Error("camera chưa tắt sau khi đọc được mã");
+    return "đọc được mã từ camera, chấm Lừa đảo, camera tự tắt";
+  } finally {
+    await cam.close();
+  }
+});
+
 await test("Giao diện điện thoại (390px): không tràn ngang", async () => {
   await page.setViewport({ width: 390, height: 844, isMobile: true });
   const widths = {};

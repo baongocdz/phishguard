@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PhishGuard – Kiểm tra lừa đảo</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2453d6">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 </head>
 <body>
 <header class="top">
@@ -40,8 +44,14 @@
       <input type="file" id="qr-file" accept="image/*">
       <p>Kéo thả ảnh vào đây, bấm để chọn, hoặc <b>Ctrl+V</b> để dán ảnh</p>
     </div>
+    <div class="row">
+      <button class="primary" id="cam-btn">📷 Quét bằng camera</button>
+      <button class="ghost hidden" id="cam-stop">Dừng camera</button>
+      <span class="muted" id="cam-status"></span>
+    </div>
+    <div class="cam hidden" id="cam-box"><video id="cam-video" playsinline muted></video><div class="cam-frame"></div></div>
     <canvas id="qr-canvas" class="hidden"></canvas>
-    <p class="hint">Quishing = lừa đảo bằng mã QR: mã dán ở bãi xe, hóa đơn, email… dẫn tới trang giả mạo. Ảnh được giải mã ngay trên trình duyệt, không tải lên máy chủ.</p>
+    <p class="hint">Quishing = lừa đảo bằng mã QR: mã dán ở bãi xe, hóa đơn, email… dẫn tới trang giả mạo. Ảnh và hình camera được giải mã ngay trên trình duyệt, không tải lên máy chủ. Trên điện thoại có thể "Thêm vào màn hình chính" để dùng như ứng dụng.</p>
   </section>
 
   <section class="panel hidden" id="tab-email">

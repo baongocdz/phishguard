@@ -1,0 +1,16 @@
+{
+  "name": "PhishGuard – Kiểm tra lừa đảo",
+  "short_name": "PhishGuard",
+  "description": "Kiểm tra link, mã QR, email và tin nhắn lừa đảo.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#2453d6",
+  "lang": "vi",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
