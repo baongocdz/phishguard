@@ -19,5 +19,8 @@ class Settings(BaseSettings):
     # Origin được phép gọi API (CORS), phân tách bằng dấu phẩy. "*" = tất cả.
     cors_origins: str = "*"
 
+    # Số lần gọi /analyze tối đa mỗi phút cho một IP. 0 = không giới hạn.
+    rate_limit_per_minute: int = 30
+
 
 settings = Settings()

@@ -178,3 +178,43 @@ async def test_invalid_json_from_model_returns_none(monkeypatch):
 
     monkeypatch.setattr(gemini_client, "_call_model", bad)
     assert await gemini_client.classify_with_gemini(AnalyzeRequest(**login_page())) is None
+
+
+# ---------------- Luật giả mạo thương hiệu / đuôi tên miền / từ khóa ----------------
+from app.heuristics import run_heuristics
+from app.schemas import AnalyzeRequest
+
+
+def score_of(hostname, pw=True):
+    req = AnalyzeRequest(url=f"https://{hostname}/login", hostname=hostname,
+                         protocol="https:", has_password_field=pw, form_count=1)
+    return run_heuristics(req)
+
+
+@pytest.mark.parametrize("host", [
+    "secure-vietcombank-xacminh.top",
+    "paypal-verify-account.com",
+    "faceb00k-security-check.com",
+    "appleid.apple.com.verify-user.xyz",
+])
+def test_brand_impersonation_is_phishing(host):
+    assert score_of(host).verdict == "phishing"
+
+
+@pytest.mark.parametrize("host", [
+    "www.paypal.com", "vietcombank.com.vn", "portal.vietcombank.com.vn",
+    "m.facebook.com", "github.com", "example.org", "vnexpress.net",
+])
+def test_official_and_normal_domains_stay_safe(host):
+    assert score_of(host).verdict == "safe"
+
+
+def test_rate_limit_returns_429(monkeypatch):
+    monkeypatch.setattr(settings, "rate_limit_per_minute", 3)
+    c, _ = make_client()
+    body = payload("https://example.org/", "example.org")
+    codes = [c.post("/analyze", json=body).status_code for _ in range(4)]
+    assert codes == [200, 200, 200, 429]
+    # IP khác vẫn gọi được
+    other = c.post("/analyze", json=body, headers={"X-Forwarded-For": "198.51.100.1"})
+    assert other.status_code == 200

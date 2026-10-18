@@ -6,6 +6,7 @@ from pymongo import ASCENDING, AsyncMongoClient
 
 from . import service
 from .config import settings
+from .rate_limit import limit_by_ip
 from .schemas import AnalyzeRequest, AnalyzeResponse
 
 
@@ -45,6 +46,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(limit_by_ip)])
 async def analyze(req: AnalyzeRequest, db=Depends(get_db)):
     return await service.analyze(db, req)
