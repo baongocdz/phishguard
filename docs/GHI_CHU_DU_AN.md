@@ -31,6 +31,19 @@
 | `PHISHGUARD_RATE_LIMIT_PER_MINUTE` | Mặc định 30 lượt/phút/IP |
 | `PHISHGUARD_SAFE_BROWSING_KEY` | Key Google Safe Browsing (để trống = bỏ qua lớp này) |
 
+**Giá trị thật của các key/mật khẩu:** `docs/BI_MAT.local.md` — chỉ có trên máy (đã `.gitignore` theo mẫu
+`*.local.md`), không lên GitHub. Mất file thì xem lại `backend/.env` hoặc Render → Environment.
+
+### Đổi key (khi lộ hoặc hết hạn)
+Đổi xong luôn sửa **3 chỗ**: `backend/.env`, Render → Environment (Save, rebuild, and deploy), `docs/BI_MAT.local.md`.
+
+| Key | Cách tạo lại |
+|---|---|
+| Mật khẩu MongoDB | Atlas → Database & Network Access → Database Users → user → Edit → Edit Password (chỉ chữ + số) → sửa phần mật khẩu trong `PHISHGUARD_MONGO_URI` |
+| Gemini | https://aistudio.google.com/apikey → Create API key (xóa key cũ) |
+| Safe Browsing | Google Cloud → APIs & Services → Credentials → bấm key → Regenerate key. Tạo mới: Create credentials → API key, API restrictions = Safe Browsing API, Application restrictions = None |
+| Mã quản trị dashboard | Tự đặt chuỗi mới cho `PHISHGUARD_ADMIN_TOKEN` (không dấu tiếng Việt cho chắc) |
+
 ---
 
 ## 2. Tính năng đã làm
@@ -114,6 +127,9 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 ### Test
 - Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **43 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
+- **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
+  (thêm `--admin <mã>` để thử dashboard; truyền `http://localhost:8000` để thử bản ở máy).
+  Gọi đủ 15–16 chức năng và báo ✅/❌. Lưu ý: chạy ở máy cũng ghi vào **cùng** database Atlas.
 - Extension: `npm run typecheck`. Trang thử: `extension/test/fake-login.html`, `extension/test/ad-redirect.html`.
 
 ---
@@ -147,6 +163,8 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Biểu đồ dashboard lệch kích thước / trống khi chụp | Canvas không có khung cố định; animation | `.chart-box` cao 240px, `maintainAspectRatio:false`, `animation:false` |
 | `shopee.vn` bị ML chấm lừa đảo | Shopee bị giả mạo rất nhiều trong dữ liệu train | Không cộng điểm ML cho tên miền chính chủ trong `BRANDS` + có trong whitelist |
 | Mất `.venv` sau khi dời thư mục | venv gắn đường dẫn cũ | `python -m venv .venv` rồi `pip install -r requirements.txt` |
+| Thêm key Safe Browsing mà không có tác dụng | Tên field `safe_browsing_api_key` ≠ tên biến `PHISHGUARD_SAFE_BROWSING_KEY` | Đổi field thành `safe_browsing_key`; có test so tên biến trong render.yaml/.env.example với Settings |
+| Render bản cũ báo lỗi 500 với kết quả do bản mới ghi vào cache | Hai phiên bản dùng chung cache Atlas, bản cũ không hiểu nguồn mới | Deploy bản mới (hoặc xóa collection `cache`) |
 | Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
 | Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |

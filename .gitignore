@@ -10,3 +10,6 @@ dist/
 
 # Cấu hình cá nhân của Claude Code
 .claude/settings.local.json
+
+# Ghi chú chứa key/mật khẩu thật: chỉ để trên máy
+*.local.md
