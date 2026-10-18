@@ -32,6 +32,15 @@ def is_lan_host(hostname: str) -> bool:
     return any(ip in net for net in LAN_NETWORKS if ip.version == net.version)
 
 
+def registrable_domain(hostname: str) -> str:
+    """Tên miền gốc đã đăng ký: mail.paypal.com -> paypal.com, a.x.com.vn -> x.com.vn.
+    Cách cắt đơn giản (không dùng Public Suffix List), đủ cho các đuôi phổ biến."""
+    parts = hostname.lower().rstrip(".").split(".")
+    if len(parts) >= 3 and parts[-2] in {"com", "net", "org", "edu", "gov", "co", "ac"} and len(parts[-1]) == 2:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:])
+
+
 def candidate_domains(hostname: str) -> list[str]:
     """mail.google.com -> [mail.google.com, google.com].
 

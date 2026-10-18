@@ -22,6 +22,7 @@ function renderReasons(list: HTMLElement, reasons: string[]): void {
 
 const LAYER: Record<string, string> = {
   list: "Danh sách", intel: "Google", rule: "Luật", ml: "Học máy", ai: "Gemini", link: "Link rút gọn",
+  age: "Tuổi tên miền", community: "Cộng đồng",
 };
 
 /** "Điểm đến từ đâu": mỗi lớp góp bao nhiêu điểm (Explainable AI). */

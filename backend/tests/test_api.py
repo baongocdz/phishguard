@@ -395,3 +395,28 @@ def test_router_login_page_is_not_phishing():
                          protocol="http:", has_password_field=True, form_count=1)
     assert run_heuristics(req).verdict == "safe"
     assert run_heuristics(req.model_copy(update={"hostname": "203.0.113.9"})).verdict == "phishing"
+
+
+# ---------------- Tuổi tên miền ----------------
+from app import domain_age
+from app.domains import registrable_domain
+
+
+def test_registrable_domain():
+    assert registrable_domain("mail.paypal.com") == "paypal.com"
+    assert registrable_domain("a.b.vietcombank.com.vn") == "vietcombank.com.vn"
+
+
+def test_domain_age_points():
+    assert domain_age.points_for(3) == 0.3 and domain_age.points_for(40) == 0.15
+    assert domain_age.points_for(400) == 0 and domain_age.points_for(None) == 0
+
+
+def test_new_domain_adds_age_signal(monkeypatch):
+    async def fake_age(host):
+        return 2
+    monkeypatch.setattr(domain_age, "age_days", fake_age)
+    c, _ = make_client()
+    r = c.post("/analyze", json=payload("https://brand-new-shop.example/", "brand-new-shop.example")).json()
+    assert r["verdict"] == "suspicious"
+    assert any(s["layer"] == "age" and "2 ngày" in s["label"] for s in r["breakdown"])

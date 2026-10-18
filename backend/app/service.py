@@ -9,7 +9,7 @@ from .config import settings
 from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
-from . import ml, safebrowsing, shortlinks, text_ml
+from . import domain_age, ml, safebrowsing, shortlinks, text_ml
 from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
@@ -37,6 +37,27 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
         return result
     reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})."
     signal = Signal(layer="ml", label=reason, points=round(score - result.score, 2))
+    return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
+                           source=result.source, breakdown=result.breakdown + [signal])
+
+
+async def apply_domain_age(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
+    """Tên miền mới đăng ký thì cộng điểm (xem app/domain_age.py). Bỏ qua khi đã chắc là
+    lừa đảo (đỡ một lượt tra cứu) hoặc là tên miền chính chủ của thương hiệu."""
+    if result.score >= 0.6 or _is_official(req.hostname.lower(), OFFICIAL_DOMAINS):
+        return result
+    # Chỉ tra khi đáng tra: người dùng chủ động kiểm tra (dán link, quét QR), trang có
+    # form/mật khẩu, hoặc đã có dấu hiệu nghi ngờ. Trang đọc báo bình thường thì bỏ qua.
+    worth = req.kind != "page" or req.has_password_field or req.form_count > 0 or result.score >= 0.2
+    if not worth:
+        return result
+    age = await domain_age.age_days(req.hostname)
+    points = domain_age.points_for(age)
+    if not points:
+        return result
+    score = min(1.0, round(result.score + points, 2))
+    reason = f"Tên miền mới đăng ký {age} ngày trước (trang lừa đảo thường dùng tên miền mới)."
+    signal = Signal(layer="age", label=reason, points=round(score - result.score, 2))
     return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
                            source=result.source, breakdown=result.breakdown + [signal])
 
@@ -153,7 +174,7 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         await _save_cache(db, key, req.hostname, result)
         return result
 
-    result = apply_ml(req, run_heuristics(req))
+    result = await apply_domain_age(req, apply_ml(req, run_heuristics(req)))
     gemini_failed = False
 
     if should_call_gemini(req, result):

@@ -33,3 +33,4 @@ details summary { cursor: pointer; font-weight: 600; }
 .history small { color: #888; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #757575; }
 .dot.phishing { background: #c62828; } .dot.suspicious { background: #ef6c00; }
+.bd-tag.age { background: #6d4c41; } .bd-tag.community { background: #ad1457; }

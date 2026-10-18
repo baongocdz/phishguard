@@ -3,6 +3,7 @@ import re
 import unicodedata
 from urllib.parse import urlsplit
 
+from .domains import registrable_domain
 from .heuristics import BRANDS, Tally, _is_official, _tokens, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest
 
@@ -36,12 +37,7 @@ def _domain_of(address: str) -> str:
     return m.group(1) if m else ""
 
 
-def _base(domain: str) -> str:
-    """Rút gọn để so sánh: mail.paypal.com -> paypal.com, x.com.vn -> x.com.vn."""
-    parts = domain.split(".")
-    if len(parts) >= 3 and parts[-2] in {"com", "net", "org", "edu", "gov"} and len(parts[-1]) == 2:
-        return ".".join(parts[-3:])
-    return ".".join(parts[-2:])
+_base = registrable_domain  # mail.paypal.com -> paypal.com, x.com.vn -> x.com.vn
 
 
 def _host(url: str) -> str:

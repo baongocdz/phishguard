@@ -100,6 +100,7 @@ function showResult(r, target, extra = []) {
 
 const LAYER = {
   list: "Danh sách", intel: "Google Safe Browsing", rule: "Bộ luật", ml: "Học máy", ai: "AI Gemini", link: "Link rút gọn",
+  age: "Tuổi tên miền", community: "Cộng đồng báo cáo",
 };
 
 function explainTable(signals) {

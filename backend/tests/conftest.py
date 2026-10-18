@@ -13,6 +13,16 @@ def no_real_gemini(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_network(monkeypatch):
+    """Không tra RDAP thật trong test (test nào cần thì tự giả lập age_days)."""
+    from app import domain_age
+
+    async def no_age(host):
+        return None
+    monkeypatch.setattr(domain_age, "age_days", no_age)
+
+
+@pytest.fixture(autouse=True)
 def fresh_rate_limit():
     """Mỗi test bắt đầu với bộ đếm rate limit trống."""
     rate_limit.reset()

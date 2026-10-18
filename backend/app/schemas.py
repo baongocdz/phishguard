@@ -27,7 +27,7 @@ class AnalyzeRequest(BaseModel):
 class Signal(BaseModel):
     """Một tín hiệu góp điểm, để giải thích vì sao ra kết luận (Explainable AI)."""
 
-    layer: Literal["list", "intel", "rule", "ml", "ai", "link"]
+    layer: Literal["list", "intel", "rule", "ml", "ai", "link", "age", "community"]
     label: str
     points: float
 
