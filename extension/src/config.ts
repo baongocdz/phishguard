@@ -3,7 +3,7 @@
  * (vd: "https://phishguard-backend.onrender.com") rồi chạy lại `npm run build`.
  * Chạy backend ở máy thì dùng "http://localhost:8000".
  */
-export const API_BASE = "http://localhost:8000";
+export const API_BASE = "https://phishguard-backend-g3w0.onrender.com";
 
 /**
  * Render gói free "ngủ" sau ~15 phút không có request, lần gọi đầu mất 30-50s
