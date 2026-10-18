@@ -1,0 +1,14 @@
+{
+  "_note": "Mạng quảng cáo chuyên popunder / chuyển hướng cưỡng ép. Không chặn quảng cáo thông thường (Google, Facebook...) vì người dùng có thể chủ động bấm.",
+  "domains": [
+    "popads.net", "popcash.net", "popmyads.com", "propellerads.com", "propellerclick.com",
+    "onclickads.net", "onclkds.com", "adsterra.com", "highperformanceformat.com",
+    "profitabledisplaynetwork.com", "exoclick.com", "exosrv.com", "exdynsrv.com",
+    "juicyads.com", "hilltopads.net", "hilltopads.com", "clickadu.com", "adcash.com",
+    "admaven.com", "ad-maven.com", "galaksion.com", "richads.com", "monetag.com",
+    "zeropark.com", "adskeeper.com", "trafficstars.com", "tsyndicate.com", "realsrv.com",
+    "pemsrv.com", "a-ads.com", "clickaine.com", "pushground.com", "evadav.com",
+    "mondiad.com", "trafficjunky.net", "adxpansion.com", "plugrush.com", "popunder.net",
+    "adf.ly", "shorte.st", "linkvertise.com", "ouo.io"
+  ]
+}

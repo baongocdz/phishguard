@@ -1,3 +1,4 @@
+import { allowOnce, applyAdRules } from "./adblock";
 import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
 import type { AnalysisResult, ExtMessage, PageInfo } from "./types";
 
@@ -33,6 +34,10 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
     analyzeUrl(msg.url, msg.kind).then(sendResponse);
     return true;
   }
+  if (msg.type === "AD_ALLOW") {
+    allowOnce(msg.url).then(sendResponse);
+    return true;
+  }
   if (msg.type === "REPORT") {
     sendReport(msg.payload).then(sendResponse);
     return true;
@@ -48,4 +53,12 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   void chrome.storage.session.remove(resultKey(tabId));
+});
+
+// Luật chặn quảng cáo: cài khi cài/cập nhật extension, khi mở Chrome, và khi
+// người dùng bật/tắt trong popup.
+chrome.runtime.onInstalled.addListener(() => void applyAdRules());
+chrome.runtime.onStartup.addListener(() => void applyAdRules());
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && "adBlock" in changes) void applyAdRules();
 });

@@ -42,4 +42,5 @@ export type ExtMessage =
   | { type: "GET_RESULT"; tabId: number }
   | { type: "ANALYZE_EMAIL"; payload: EmailInfo }
   | { type: "ANALYZE_URL"; url: string; kind: "qr" | "manual" }
-  | { type: "REPORT"; payload: ReportInfo };
+  | { type: "REPORT"; payload: ReportInfo }
+  | { type: "AD_ALLOW"; url: string };

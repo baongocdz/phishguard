@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Phát hiện và cảnh báo phishing theo thời gian thực.",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "http://localhost:8000/*",
@@ -38,5 +39,15 @@
   "action": {
     "default_title": "PhishGuard",
     "default_popup": "popup.html"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }

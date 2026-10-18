@@ -136,12 +136,21 @@ async function setupGmailToggle(): Promise<void> {
   box.addEventListener("change", () => void chrome.storage.local.set({ gmailScan: box.checked }));
 }
 
+// ---------- Bật/tắt chặn chuyển hướng quảng cáo ----------
+async function setupAdToggle(): Promise<void> {
+  const box = $("ad-block") as HTMLInputElement;
+  const { adBlock, adBlockedCount } = await chrome.storage.local.get(["adBlock", "adBlockedCount"]);
+  box.checked = adBlock !== false;
+  $("ad-count").textContent = `Đã chặn ${Number(adBlockedCount) || 0} lần chuyển hướng quảng cáo.`;
+  box.addEventListener("change", () => void chrome.storage.local.set({ adBlock: box.checked }));
+}
+
 async function main(): Promise<void> {
   ($("open-web") as HTMLAnchorElement).href = `${API_BASE}/`;
   ($("open-dash") as HTMLAnchorElement).href = `${API_BASE}/dashboard`;
   $("scan-qr").addEventListener("click", () => void scanQr());
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  await Promise.all([showTabResult(tab), setupGmailToggle()]);
+  await Promise.all([showTabResult(tab), setupGmailToggle(), setupAdToggle()]);
 }
 
 if (document.readyState === "loading") {

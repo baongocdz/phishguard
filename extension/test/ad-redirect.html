@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Trang thử: chuyển hướng quảng cáo</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 16px; }
+  button { font: inherit; padding: 10px 16px; margin: 6px 0; cursor: pointer; border-radius: 8px; border: 1px solid #999; }
+  .note { color: #666; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>Trang thử chặn chuyển hướng quảng cáo</h1>
+<p class="note">Mở trang này khi đã cài PhishGuard (chạy <code>python -m http.server 5500</code> trong thư mục
+<code>extension</code> rồi vào <code>http://127.0.0.1:5500/test/ad-redirect.html</code>).</p>
+
+<h3>1. Bấm vào nội dung, trang bật tab quảng cáo (popunder)</h3>
+<p>Kiểu hay gặp trên web xem phim/truyện lậu: bấm bất kỳ đâu là mở tab quảng cáo.</p>
+<button id="popunder">▶ Xem phim (bấm thử)</button>
+
+<h3>2. Trang tự chuyển hướng sang quảng cáo</h3>
+<button id="redirect">Tự chuyển hướng sau 2 giây</button>
+
+<h3>3. Link rút gọn có quảng cáo</h3>
+<p><a href="https://ouo.io/abc123">Tải tài liệu (link rút gọn)</a></p>
+
+<h3>4. Link bình thường (không bị chặn)</h3>
+<p><a href="https://vnexpress.net/">vnexpress.net</a></p>
+
+<script>
+  document.getElementById("popunder").addEventListener("click", () => {
+    window.open("https://popads.net/", "_blank");
+  });
+  document.getElementById("redirect").addEventListener("click", () => {
+    setTimeout(() => { location.href = "https://www.propellerads.com/"; }, 2000);
+  });
+</script>
+</body>
+</html>
