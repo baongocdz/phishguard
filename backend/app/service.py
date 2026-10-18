@@ -9,7 +9,7 @@ from .config import settings
 from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
-from . import ml, shortlinks, text_ml
+from . import ml, safebrowsing, shortlinks, text_ml
 from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
@@ -140,6 +140,16 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         result.source = "cache"
         return result
 
+    # Danh sách trang độc hại của Google (chỉ hỏi khi chưa có trong cache).
+    threat = await safebrowsing.check(req.url)
+    if threat:
+        label = safebrowsing.THREAT_LABEL.get(threat, threat)
+        reason = f"Google Safe Browsing đánh dấu đây là {label}."
+        result = AnalyzeResponse(verdict="phishing", score=1.0, reasons=[reason], source="safebrowsing",
+                                 breakdown=[Signal(layer="intel", label=reason, points=1.0)])
+        await _save_cache(db, key, req.hostname, result)
+        return result
+
     result = apply_ml(req, run_heuristics(req))
     gemini_failed = False
 
@@ -151,17 +161,17 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
             result = merge(result, g)
 
     if not gemini_failed:
-        await db["cache"].update_one(
-            {"key": key},
-            {"$set": {
-                "key": key,
-                "hostname": req.hostname,
-                "result": result.model_dump(),
-                "created_at": datetime.now(timezone.utc),
-            }},
-            upsert=True,
-        )
+        await _save_cache(db, key, req.hostname, result)
     return result
+
+
+async def _save_cache(db, key: str, hostname: str, result: AnalyzeResponse) -> None:
+    await db["cache"].update_one(
+        {"key": key},
+        {"$set": {"key": key, "hostname": hostname, "result": result.model_dump(),
+                  "created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
 
 
 async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:

@@ -53,8 +53,8 @@
   <h2>Luồng phát hiện</h2>
   <div class="flow">
     <div class="step list"><div class="n">1</div><b>Danh sách đen / trắng</b><span>Tên miền đã biết: kết luận ngay, không tốn tài nguyên.</span></div>
-    <div class="step list"><div class="n">2</div><b>Bộ nhớ đệm 24 giờ</b><span>Trang vừa kiểm tra thì trả kết quả cũ (các bước 1–2 hỏi CSDL song song).</span></div>
-    <div class="step"><div class="n">3</div><b>Bộ luật</b><span id="rule-desc">Giả mạo thương hiệu (cả kiểu faceb00k), đuôi tên miền rẻ, từ khóa dụ dỗ, IP, punycode, mật khẩu trên HTTP…</span></div>
+    <div class="step list"><div class="n">2</div><b>Bộ nhớ đệm + Google</b><span>Trang vừa kiểm tra trong 24 giờ thì trả kết quả cũ; chưa có thì hỏi Google Safe Browsing. Link rút gọn (bit.ly...) được mở ra để xét đích thật.</span></div>
+    <div class="step"><div class="n">3</div><b>Bộ luật</b><span id="rule-desc">Giả mạo thương hiệu (cả kiểu faceb00k, vietcornbank), đuôi tên miền rẻ, từ khóa dụ dỗ, IP, punycode, mật khẩu trên HTTP…</span></div>
     <div class="step ml"><div class="n">4</div><b>Học máy</b><span>Cộng tối đa 0,3 điểm khi tên miền "trông giống" trang lừa đảo — một mình không kết luận lừa đảo.</span></div>
     <div class="step ai"><div class="n">5</div><b>AI Gemini</b><span>Chỉ gọi khi trang có form và chưa chắc chắn. Kết luận nặng hơn thắng → trang không thể "dụ" AI hạ cảnh báo.</span></div>
     <div class="step"><div class="n">6</div><b>Kết luận + giải thích</b><span>≥ 0,6 lừa đảo · ≥ 0,3 đáng ngờ · còn lại an toàn. Ghi thống kê (không lưu trang an toàn người dùng mở).</span></div>

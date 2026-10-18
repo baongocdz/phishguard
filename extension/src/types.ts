@@ -31,6 +31,15 @@ export interface AnalysisResult {
   breakdown?: { layer: string; label: string; points: number }[]; // mỗi lớp góp bao nhiêu điểm
 }
 
+/** Một dòng trong lịch sử cảnh báo (lưu ở chrome.storage.local, không gửi đi). */
+export interface HistoryItem {
+  url: string;
+  verdict: Verdict;
+  score: number;
+  kind: "page" | "qr";
+  at: number;
+}
+
 export interface ReportInfo {
   url: string;
   hostname: string;

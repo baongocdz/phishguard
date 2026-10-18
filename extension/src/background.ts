@@ -1,14 +1,24 @@
 import { allowAlways, allowOnce, applyAdRules } from "./adblock";
 import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
-import type { AnalysisResult, ExtMessage, PageInfo } from "./types";
+import type { AnalysisResult, ExtMessage, HistoryItem, PageInfo } from "./types";
 
 const resultKey = (tabId: number) => `result:${tabId}`;
+const HISTORY_MAX = 30;
+
+/** Lịch sử cảnh báo: chỉ lưu trên máy (chrome.storage.local), tối đa HISTORY_MAX dòng. */
+export async function addHistory(item: HistoryItem): Promise<void> {
+  const { history } = await chrome.storage.local.get("history");
+  const list: HistoryItem[] = Array.isArray(history) ? history : [];
+  const fresh = list.filter((h) => h.url !== item.url); // trang mở lại thì đưa lên đầu
+  await chrome.storage.local.set({ history: [item, ...fresh].slice(0, HISTORY_MAX) });
+}
 
 async function handlePageInfo(tabId: number, info: PageInfo): Promise<void> {
   const result = { ...(await analyze(info)), url: info.url };
   await chrome.storage.session.set({ [resultKey(tabId)]: result });
 
   const flagged = result.verdict !== "safe";
+  if (flagged) await addHistory({ url: info.url, verdict: result.verdict, score: result.score, kind: "page", at: Date.now() });
   await chrome.action.setBadgeText({ tabId, text: flagged ? "!" : "" });
   if (flagged) {
     await chrome.action.setBadgeBackgroundColor({
@@ -31,7 +41,12 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
     return true;
   }
   if (msg.type === "ANALYZE_URL") {
-    analyzeUrl(msg.url, msg.kind).then(sendResponse);
+    analyzeUrl(msg.url, msg.kind).then(async (r) => {
+      if (r && r.verdict !== "safe" && msg.kind === "qr") {
+        await addHistory({ url: msg.url, verdict: r.verdict, score: r.score, kind: "qr", at: Date.now() });
+      }
+      sendResponse(r);
+    });
     return true;
   }
   if (msg.type === "AD_ALLOW") {

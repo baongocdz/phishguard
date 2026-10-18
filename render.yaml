@@ -20,6 +20,9 @@ services:
         sync: false
       - key: PHISHGUARD_GEMINI_MODEL
         value: gemini-flash-lite-latest
+      # Google Safe Browsing API key (không bắt buộc). Nhập trên dashboard Render.
+      - key: PHISHGUARD_SAFE_BROWSING_KEY
+        sync: false
       # Mã đăng nhập trang /dashboard. Render tự sinh chuỗi ngẫu nhiên;
       # xem giá trị ở tab Environment của service.
       - key: PHISHGUARD_ADMIN_TOKEN

@@ -1,10 +1,10 @@
 import jsQR from "jsqr";
 import { API_BASE } from "./config";
-import type { AnalysisResult, ExtMessage } from "./types";
+import type { AnalysisResult, ExtMessage, HistoryItem } from "./types";
 
 const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa đảo" } as const;
 const SOURCE: Record<string, string> = {
-  blacklist: "danh sách đen", whitelist: "danh sách tin cậy", cache: "kết quả đã lưu",
+  blacklist: "danh sách đen", whitelist: "danh sách tin cậy", cache: "kết quả đã lưu", safebrowsing: "Google Safe Browsing",
   heuristic: "bộ luật + học máy", gemini: "bộ luật + AI Gemini", email: "bộ luật email",
   local: "bộ luật trên máy (không kết nối được máy chủ)",
 };
@@ -184,12 +184,39 @@ async function setupAdToggle(): Promise<void> {
   box.addEventListener("change", () => void chrome.storage.local.set({ adBlock: box.checked }));
 }
 
+// ---------- Lịch sử cảnh báo (chỉ trên máy) ----------
+async function setupHistory(): Promise<void> {
+  const { history } = await chrome.storage.local.get("history");
+  const list: HistoryItem[] = Array.isArray(history) ? history : [];
+  $("history-count").textContent = String(list.length);
+  const ul = $("history");
+  ul.replaceChildren(...list.map((h) => {
+    const li = document.createElement("li");
+    const chip = document.createElement("span");
+    chip.className = `dot ${h.verdict}`;
+    let host = h.url;
+    try { host = new URL(h.url).hostname; } catch { /* giữ nguyên */ }
+    const text = document.createElement("span");
+    text.textContent = `${h.kind === "qr" ? "▦ " : ""}${host}`;
+    text.title = h.url;
+    const time = document.createElement("small");
+    time.textContent = new Date(h.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+    li.append(chip, text, time);
+    return li;
+  }));
+  if (!list.length) ul.textContent = "Chưa có cảnh báo nào.";
+  $("history-clear").addEventListener("click", (e) => {
+    e.preventDefault();
+    void chrome.storage.local.set({ history: [] }).then(setupHistory);
+  });
+}
+
 async function main(): Promise<void> {
   ($("open-web") as HTMLAnchorElement).href = `${API_BASE}/`;
   ($("open-dash") as HTMLAnchorElement).href = `${API_BASE}/dashboard`;
   $("scan-qr").addEventListener("click", () => void scanQr());
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  await Promise.all([showTabResult(tab), setupGmailToggle(), setupAdToggle()]);
+  await Promise.all([showTabResult(tab), setupGmailToggle(), setupAdToggle(), setupHistory()]);
 }
 
 if (document.readyState === "loading") {

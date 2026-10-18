@@ -26,3 +26,10 @@ hr { border: none; border-top: 1px solid #e2e7f0; margin: 10px 0; }
 .bd-tag.rule { background: #2453d6; } .bd-tag.ml { background: #7b1fa2; } .bd-tag.ai { background: #00838f; }
 .bd-tag.list { background: #455a64; } .bd-tag.intel { background: #c62828; } .bd-tag.link { background: #ef6c00; }
 .bd.hidden { display: none; }
+details summary { cursor: pointer; font-weight: 600; }
+.history { list-style: none; margin: 6px 0; padding: 0; max-height: 160px; overflow: auto; font-size: 12px; }
+.history li { display: grid; grid-template-columns: 10px 1fr auto; gap: 6px; align-items: center; padding: 3px 0; border-bottom: 1px solid #f0f2f7; }
+.history li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history small { color: #888; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #757575; }
+.dot.phishing { background: #c62828; } .dot.suspicious { background: #ef6c00; }

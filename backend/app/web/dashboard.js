@@ -3,13 +3,13 @@ const $ = (id) => document.getElementById(id);
 const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa đảo" };
 const KIND = { page: "Trang web (extension)", qr: "Mã QR", manual: "Link dán vào web", email: "Email / tin nhắn" };
 const SOURCE = {
-  blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Cache",
+  blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Cache", safebrowsing: "Google Safe Browsing",
   heuristic: "Luật + học máy", gemini: "Luật + Gemini", email: "Luật email",
 };
 const PALETTE = ["#2453d6", "#c62828", "#ef6c00", "#2e7d32", "#7b1fa2", "#00838f", "#6d4c41"];
 // Màu cố định cho từng loại để biểu đồ không đổi màu giữa các lần tải.
 const COLORS = {
-  blacklist: "#c62828", whitelist: "#2e7d32", cache: "#90a4ae", heuristic: "#2453d6", gemini: "#7b1fa2", email: "#00838f",
+  blacklist: "#c62828", whitelist: "#2e7d32", safebrowsing: "#f9a825", cache: "#90a4ae", heuristic: "#2453d6", gemini: "#7b1fa2", email: "#00838f",
   page: "#2453d6", qr: "#ef6c00", manual: "#6d4c41", email_kind: "#00838f",
 };
 const charts = {};

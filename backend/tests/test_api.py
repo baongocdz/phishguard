@@ -343,3 +343,24 @@ def test_email_endpoint_adds_text_ml_signal():
             "with your bank account number and password. Offer expires today, act immediately.")
     r = c.post("/analyze-email", json={"body": body}).json()
     assert any(s["layer"] == "ml" for s in r["breakdown"])
+
+
+# ---------------- Google Safe Browsing ----------------
+from app import safebrowsing
+
+
+def test_safe_browsing_match_wins(monkeypatch):
+    async def fake_check(url):
+        return "SOCIAL_ENGINEERING"
+    monkeypatch.setattr(safebrowsing, "check", fake_check)
+    c, db = make_client()
+    r = c.post("/analyze", json=payload("https://looks-normal.example/", "looks-normal.example")).json()
+    assert r["verdict"] == "phishing" and r["source"] == "safebrowsing"
+    assert r["breakdown"][0]["layer"] == "intel"
+    assert db["cache"].docs  # đã ghi cache
+
+
+def test_safe_browsing_skipped_without_key(monkeypatch):
+    import asyncio
+    monkeypatch.setattr(settings, "safe_browsing_api_key", "")
+    assert asyncio.run(safebrowsing.check("https://example.com/")) is None

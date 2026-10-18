@@ -25,6 +25,13 @@
     <label class="toggle"><input type="checkbox" id="gmail-scan" /> Phân tích email đang mở trong Gmail</label>
     <p class="url">Khi bật, nội dung email đang mở được gửi tới máy chủ PhishGuard (và AI Gemini) để phân tích.</p>
 
+    <hr />
+    <details id="history-box">
+      <summary>🕘 Lịch sử cảnh báo (<span id="history-count">0</span>)</summary>
+      <ul id="history" class="history"></ul>
+      <a href="#" id="history-clear" class="url">Xóa lịch sử</a>
+    </details>
+
     <p class="links"><a id="open-web" href="#" target="_blank">Kiểm tra link / email / QR</a> · <a id="open-dash" href="#" target="_blank">Quản trị</a></p>
     <script src="popup.js"></script>
   </body>

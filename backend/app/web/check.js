@@ -3,7 +3,7 @@ const $ = (id) => document.getElementById(id);
 const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa đảo" };
 const COLOR = { safe: "var(--safe)", suspicious: "var(--suspicious)", phishing: "var(--phishing)" };
 const SOURCE = {
-  blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Kết quả đã lưu",
+  blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Kết quả đã lưu", safebrowsing: "Google Safe Browsing",
   heuristic: "Bộ luật + học máy", gemini: "Bộ luật + AI Gemini", email: "Bộ luật email",
 };
 const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/gi;
