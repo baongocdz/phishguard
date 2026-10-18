@@ -16,6 +16,9 @@ from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportReques
 log = logging.getLogger("phishguard.service")
 
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
+# Tăng khi đổi cách chấm hoặc định dạng kết quả để bỏ qua kết quả cũ trong cache
+# (v2: có breakdown, tên miền na ná, Safe Browsing, mạng nội bộ).
+CACHE_VERSION = "v2"
 
 
 OFFICIAL_DOMAINS = sorted({d for domains in BRANDS.values() for d in domains})
@@ -111,7 +114,7 @@ async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
 async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
     """Luồng: blacklist -> whitelist -> cache -> luật -> (Gemini) -> ghi cache."""
     candidates = candidate_domains(req.hostname)
-    key = cache_key(req.url)
+    key = f"{CACHE_VERSION}:{cache_key(req.url)}"
 
     # Hỏi 3 bảng cùng lúc thay vì lần lượt: mỗi lượt tới Atlas mất vài trăm ms.
     black, white, cached = await asyncio.gather(
@@ -176,7 +179,7 @@ async def _save_cache(db, key: str, hostname: str, result: AnalyzeResponse) -> N
 
 async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
     """Luồng email: cache -> luật email -> (Gemini) -> ghi cache."""
-    key = "email:" + hashlib.sha256(
+    key = f"email:{CACHE_VERSION}:" + hashlib.sha256(
         f"{req.sender}\n{req.subject}\n{req.body}".encode()
     ).hexdigest()
     cached = await db["cache"].find_one({"key": key})
