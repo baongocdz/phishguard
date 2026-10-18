@@ -86,3 +86,14 @@ table.compact td .ghost { padding: 2px 8px; font-size: 13px; }
 .icon-btn { border: none; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
 .icon-btn:hover { background: var(--line); color: var(--phishing); }
 .chart-box { position: relative; height: 240px; }
+
+/* Giải thích điểm (Explainable AI) */
+.bd { margin: 12px 0 4px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.bd-title { margin: 0; padding: 8px 12px; font-weight: 600; background: var(--bg); }
+.bd-row { display: grid; grid-template-columns: 130px 1fr 52px; gap: 10px; padding: 7px 12px;
+          border-top: 1px solid var(--line); align-items: start; font-size: 14px; }
+.bd-pts { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bd-tag { font-size: 12px; font-weight: 600; border-radius: 6px; padding: 1px 8px; justify-self: start; color: #fff; background: #607d8b; }
+.bd-tag.rule { background: #2453d6; } .bd-tag.ml { background: #7b1fa2; } .bd-tag.ai { background: #00838f; }
+.bd-tag.list { background: #455a64; } .bd-tag.intel { background: #c62828; } .bd-tag.link { background: #ef6c00; }
+@media (max-width: 560px) { .bd-row { grid-template-columns: 1fr 52px; } .bd-row .bd-tag { grid-column: 1 / -1; } }

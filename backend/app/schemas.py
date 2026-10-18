@@ -24,11 +24,21 @@ class AnalyzeRequest(BaseModel):
     kind: Literal["page", "qr", "manual"] = "page"
 
 
+class Signal(BaseModel):
+    """Một tín hiệu góp điểm, để giải thích vì sao ra kết luận (Explainable AI)."""
+
+    layer: Literal["list", "intel", "rule", "ml", "ai", "link"]
+    label: str
+    points: float
+
+
 class AnalyzeResponse(BaseModel):
     verdict: Literal["safe", "suspicious", "phishing"]
     score: float
     reasons: list[str]
     source: Literal["blacklist", "whitelist", "cache", "heuristic", "gemini", "email"]
+    # Từng lớp góp bao nhiêu điểm (danh sách, luật, học máy, AI...).
+    breakdown: list[Signal] = Field(default_factory=list)
 
 
 class EmailLink(BaseModel):

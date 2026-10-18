@@ -75,9 +75,15 @@ function showResult(r, target, extra = []) {
   box.className = `result ${r.verdict}`;
   const pct = Math.round(r.score * 100);
   const meter = el("div", { class: "meter" }, el("div", { style: `width:${Math.max(pct, 3)}%;background:${COLOR[r.verdict]}` }));
-  const reasons = r.reasons.length
-    ? el("ul", {}, r.reasons.map((x) => el("li", {}, x)))
-    : el("p", { class: "muted" }, "Không phát hiện dấu hiệu bất thường.");
+  // Explainable AI: mỗi lớp (danh sách, luật, học máy, Gemini...) góp bao nhiêu điểm.
+  const breakdown = r.breakdown || [];
+  const explained = new Set(breakdown.map((s) => s.label));
+  const extraReasons = r.reasons.filter((x) => !explained.has(x)); // lý do chi tiết của Gemini
+  const why = breakdown.length ? explainTable(breakdown) : "";
+  const reasons = extraReasons.length
+    ? el("div", {}, breakdown.length ? el("p", { class: "muted" }, "Chi tiết từ AI:") : "",
+        el("ul", {}, extraReasons.map((x) => el("li", {}, x))))
+    : breakdown.length ? "" : el("p", { class: "muted" }, "Không phát hiện dấu hiệu bất thường.");
 
   const children = [
     el("div", {}, el("span", { class: `chip ${r.verdict}` }, `${LABEL[r.verdict]}`), "  ",
@@ -85,10 +91,23 @@ function showResult(r, target, extra = []) {
     meter,
     target ? el("p", { class: "mono" }, `${target.label}: ${target.value}`) : "",
     ...extra,
+    why,
     reasons,
   ];
   if (target && target.url) children.push(reportBox(target, r));
   box.replaceChildren(...children);
+}
+
+const LAYER = {
+  list: "Danh sách", intel: "Google Safe Browsing", rule: "Bộ luật", ml: "Học máy", ai: "AI Gemini", link: "Link rút gọn",
+};
+
+function explainTable(signals) {
+  const rows = signals.map((s) => el("div", { class: "bd-row" },
+    el("span", { class: `bd-tag ${s.layer}` }, LAYER[s.layer] || s.layer),
+    el("span", {}, s.label),
+    el("span", { class: "bd-pts" }, s.points > 0 ? `+${s.points}` : "0")));
+  return el("div", { class: "bd" }, el("p", { class: "bd-title" }, "Vì sao ra kết quả này?"), ...rows);
 }
 
 function reportBox(target, r) {

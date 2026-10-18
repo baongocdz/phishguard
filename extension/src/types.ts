@@ -28,6 +28,7 @@ export interface AnalysisResult {
   reasons: string[];
   source: string;
   url?: string; // trang được chấm (extension tự gắn để popup so với tab hiện tại)
+  breakdown?: { layer: string; label: string; points: number }[]; // mỗi lớp góp bao nhiêu điểm
 }
 
 export interface ReportInfo {

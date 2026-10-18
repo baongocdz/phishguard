@@ -1,7 +1,30 @@
 import re
 
 from .domains import is_ip
-from .schemas import AnalyzeRequest, AnalyzeResponse
+from .schemas import AnalyzeRequest, AnalyzeResponse, Signal
+
+
+def verdict_of(score: float) -> str:
+    return "phishing" if score >= 0.6 else "suspicious" if score >= 0.3 else "safe"
+
+
+class Tally:
+    """Cộng điểm và ghi lại từng tín hiệu để giải thích kết quả."""
+
+    def __init__(self, layer: str = "rule"):
+        self.layer = layer
+        self.signals: list[Signal] = []
+
+    def add(self, points: float, reason: str) -> None:
+        self.signals.append(Signal(layer=self.layer, label=reason, points=round(points, 2)))
+
+    @property
+    def reasons(self) -> list[str]:
+        return [s.label for s in self.signals]
+
+    @property
+    def score(self) -> float:
+        return min(1.0, round(sum(s.points for s in self.signals), 2))
 
 # Từ khóa thương hiệu -> các tên miền chính thức. Tên miền chứa từ khóa nhưng
 # không thuộc tên miền chính thức thì nhiều khả năng là giả mạo.
@@ -64,28 +87,21 @@ def _is_official(host: str, domains: list[str]) -> bool:
 def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
     """Bản Python của luật ở Extension. Luật chưa chắc chắn thì service.py
     hỏi thêm Gemini."""
-    reasons: list[str] = []
-    score = 0.0
+    t = Tally()
     host = req.hostname.lower().rstrip(".")
 
     if req.protocol != "https:":
-        score += 0.2
-        reasons.append("Trang không dùng HTTPS.")
+        t.add(0.2, "Trang không dùng HTTPS.")
     if is_ip(host):
-        score += 0.4
-        reasons.append("Địa chỉ trang là IP thay vì tên miền.")
+        t.add(0.4, "Địa chỉ trang là IP thay vì tên miền.")
     if "@" in req.url:
-        score += 0.3
-        reasons.append("URL chứa ký tự '@' (có thể che giấu tên miền thật).")
+        t.add(0.3, "URL chứa ký tự '@' (có thể che giấu tên miền thật).")
     if len(host) > 40 or host.count("-") >= 3:
-        score += 0.2
-        reasons.append("Tên miền quá dài hoặc có nhiều dấu gạch ngang.")
+        t.add(0.2, "Tên miền quá dài hoặc có nhiều dấu gạch ngang.")
     if "xn--" in host:
-        score += 0.3
-        reasons.append("Tên miền dùng punycode (có thể giả mạo ký tự).")
+        t.add(0.3, "Tên miền dùng punycode (có thể giả mạo ký tự).")
     if req.has_password_field and req.protocol != "https:":
-        score += 0.4
-        reasons.append("Có ô nhập mật khẩu trên kết nối không an toàn.")
+        t.add(0.4, "Có ô nhập mật khẩu trên kết nối không an toàn.")
 
     if not is_ip(host):
         tokens = _tokens(host)
@@ -97,15 +113,13 @@ def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
             None,
         )
         if brand:
-            score += 0.4
-            reasons.append(f"Tên miền chứa tên thương hiệu '{brand}' nhưng không phải tên miền chính thức.")
+            t.add(0.4, f"Tên miền chứa tên thương hiệu '{brand}' nhưng không phải tên miền chính thức.")
         if host.rsplit(".", 1)[-1] in SUSPICIOUS_TLDS:
-            score += 0.2
-            reasons.append("Đuôi tên miền thường bị dùng cho trang lừa đảo.")
+            t.add(0.2, "Đuôi tên miền thường bị dùng cho trang lừa đảo.")
         if any(w in t for t in tokens for w in LURE_WORDS):
-            score += 0.2
-            reasons.append("Tên miền chứa từ ngữ dụ đăng nhập/xác minh.")
+            t.add(0.2, "Tên miền chứa từ ngữ dụ đăng nhập/xác minh.")
 
-    score = min(1.0, round(score, 2))
-    verdict = "phishing" if score >= 0.6 else "suspicious" if score >= 0.3 else "safe"
-    return AnalyzeResponse(verdict=verdict, score=score, reasons=reasons, source="heuristic")
+    score = t.score
+    verdict = verdict_of(score)
+    return AnalyzeResponse(verdict=verdict, score=score, reasons=t.reasons, source="heuristic",
+                           breakdown=t.signals)

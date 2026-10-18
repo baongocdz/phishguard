@@ -3,7 +3,7 @@ import re
 import unicodedata
 from urllib.parse import urlsplit
 
-from .heuristics import BRANDS, _is_official, _tokens, run_heuristics
+from .heuristics import BRANDS, Tally, _is_official, _tokens, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest
 
 EMAIL_RE = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
@@ -52,8 +52,7 @@ def _host(url: str) -> str:
 
 
 def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
-    reasons: list[str] = []
-    score = 0.0
+    t = Tally()
     sender_domain = _domain_of(req.sender)
     display_name = req.sender.split("<")[0]
 
@@ -62,15 +61,13 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     for brand, official in BRANDS.items():
         if any(t.startswith(brand) for t in name_tokens) and sender_domain \
                 and not _is_official(sender_domain, official):
-            score += 0.4
-            reasons.append(f"Người gửi xưng là '{brand}' nhưng gửi từ tên miền {sender_domain}.")
+            t.add(0.4, f"Người gửi xưng là '{brand}' nhưng gửi từ tên miền {sender_domain}.")
             break
 
     # 2. Reply-To khác người gửi: trả lời sẽ đi tới kẻ gian.
     reply_domain = _domain_of(req.reply_to)
     if reply_domain and sender_domain and _base(reply_domain) != _base(sender_domain):
-        score += 0.2
-        reasons.append(f"Địa chỉ trả lời ({reply_domain}) khác tên miền người gửi.")
+        t.add(0.2, f"Địa chỉ trả lời ({reply_domain}) khác tên miền người gửi.")
 
     # 3. Link: chữ hiển thị một tên miền nhưng thực ra trỏ tới tên miền khác,
     #    hoặc bản thân link trông như trang lừa đảo.
@@ -90,24 +87,20 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
             if r.verdict != "safe":
                 risky = (href_host, r)
     if mismatch:
-        score += 0.4
-        reasons.append(f"Link hiển thị '{mismatch[0]}' nhưng thực ra dẫn tới {mismatch[1]}.")
+        t.add(0.4, f"Link hiển thị '{mismatch[0]}' nhưng thực ra dẫn tới {mismatch[1]}.")
     if risky:
-        score += 0.3 if risky[1].verdict == "phishing" else 0.15
-        reasons.append(f"Email chứa link đáng ngờ: {risky[0]}.")
+        t.add(0.3 if risky[1].verdict == "phishing" else 0.15, f"Email chứa link đáng ngờ: {risky[0]}.")
 
     # 4. Nội dung: hối thúc, đòi thông tin nhạy cảm, mồi trúng thưởng.
     text = _strip_accents(f"{req.subject}\n{req.body}")
     if any(w in text for w in URGENCY):
-        score += 0.15
-        reasons.append("Nội dung hối thúc hoặc đe dọa (khóa tài khoản, hết hạn...).")
+        t.add(0.15, "Nội dung hối thúc hoặc đe dọa (khóa tài khoản, hết hạn...).")
     if any(w in text for w in SENSITIVE):
-        score += 0.15
-        reasons.append("Email đề cập mật khẩu, OTP, thẻ hoặc chuyển tiền.")
+        t.add(0.15, "Email đề cập mật khẩu, OTP, thẻ hoặc chuyển tiền.")
     if any(w in text for w in PRIZE):
-        score += 0.15
-        reasons.append("Email hứa hẹn quà tặng hoặc trúng thưởng.")
+        t.add(0.15, "Email hứa hẹn quà tặng hoặc trúng thưởng.")
 
-    score = min(1.0, round(score, 2))
-    verdict = "phishing" if score >= 0.6 else "suspicious" if score >= 0.3 else "safe"
-    return AnalyzeResponse(verdict=verdict, score=score, reasons=reasons, source="email")
+    score = t.score
+    verdict = verdict_of(score)
+    return AnalyzeResponse(verdict=verdict, score=score, reasons=t.reasons, source="email",
+                           breakdown=t.signals)

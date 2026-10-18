@@ -9,8 +9,8 @@ from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
 from . import ml
-from .heuristics import BRANDS, _is_official, run_heuristics
-from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
+from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
+from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
 log = logging.getLogger("phishguard.service")
 
@@ -31,10 +31,10 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     score = ml.combine(result.score, prob)
     if score == result.score:
         return result
-    verdict = "phishing" if score >= 0.6 else "suspicious" if score >= 0.3 else "safe"
     reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})."
-    return AnalyzeResponse(verdict=verdict, score=score, reasons=result.reasons + [reason],
-                           source=result.source)
+    signal = Signal(layer="ml", label=reason, points=round(score - result.score, 2))
+    return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
+                           source=result.source, breakdown=result.breakdown + [signal])
 
 
 def should_call_gemini(req: AnalyzeRequest, heuristic: AnalyzeResponse) -> bool:
@@ -70,7 +70,11 @@ def merge(h: AnalyzeResponse, g: GeminiOutput) -> AnalyzeResponse:
         verdict, score, reasons = h.verdict, h.score, h.reasons + g.reasons
 
     unique = list(dict.fromkeys(reasons))[:6]
-    return AnalyzeResponse(verdict=verdict, score=score, reasons=unique, source="gemini")
+    label = {"safe": "an toàn", "suspicious": "đáng ngờ", "phishing": "lừa đảo"}[g.verdict]
+    signal = Signal(layer="ai", points=round(max(0.0, score - h.score), 2),
+                    label=f"Gemini đọc nội dung và kết luận: {label} (độ tin cậy {g.confidence:.0%}).")
+    return AnalyzeResponse(verdict=verdict, score=score, reasons=unique, source="gemini",
+                           breakdown=h.breakdown + [signal])
 
 
 async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
@@ -90,12 +94,14 @@ async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         return AnalyzeResponse(
             verdict="phishing", score=1.0,
             reasons=["Tên miền nằm trong danh sách đen."], source="blacklist",
+            breakdown=[Signal(layer="list", label=f"Danh sách đen: {black['domain']}", points=1.0)],
         )
 
     if white:
         return AnalyzeResponse(
             verdict="safe", score=0.0,
             reasons=["Tên miền nằm trong danh sách tin cậy."], source="whitelist",
+            breakdown=[Signal(layer="list", label=f"Danh sách tin cậy: {white['domain']}", points=0.0)],
         )
 
     if cached:
@@ -189,3 +195,27 @@ async def save_report(db, req: ReportRequest) -> None:
         "note": req.note,
         "at": datetime.now(timezone.utc),
     })
+
+
+async def public_stats(db, metrics_csv) -> dict:
+    import csv
+
+    events = db["events"]
+    total, phishing, suspicious, qr, email, black, white = await asyncio.gather(
+        events.count_documents({}),
+        events.count_documents({"verdict": "phishing"}),
+        events.count_documents({"verdict": "suspicious"}),
+        events.count_documents({"kind": "qr"}),
+        events.count_documents({"kind": "email"}),
+        db["blacklist"].count_documents({}),
+        db["whitelist"].count_documents({}),
+    )
+    metrics = []
+    try:
+        with open(metrics_csv, encoding="utf-8-sig") as f:
+            metrics = [{k: (v if k == "Phương pháp" else round(float(v), 3)) for k, v in row.items()}
+                       for row in csv.DictReader(f)]
+    except OSError:
+        pass
+    return {"total": total, "phishing": phishing, "suspicious": suspicious, "qr": qr, "email": email,
+            "blacklist": black, "whitelist": white, "brands": len(BRANDS), "metrics": metrics}

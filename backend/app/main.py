@@ -14,6 +14,7 @@ from .rate_limit import limit_by_ip
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
 
 WEB_DIR = Path(__file__).parent / "web"
+EVAL_DIR = Path(__file__).parent.parent / "eval" / "results"
 
 
 @asynccontextmanager
@@ -46,6 +47,9 @@ app.add_middleware(
 )
 app.include_router(admin.router)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+# Ảnh ROC / ma trận nhầm lẫn của phần đánh giá, cho trang /about.
+if EVAL_DIR.is_dir():
+    app.mount("/eval", StaticFiles(directory=EVAL_DIR), name="eval")
 
 
 @app.get("/health")
@@ -77,6 +81,17 @@ async def report(req: ReportRequest, db=Depends(get_db)):
 @app.get("/", include_in_schema=False)
 async def home():
     return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/about", include_in_schema=False)
+async def about():
+    return FileResponse(WEB_DIR / "about.html")
+
+
+@app.get("/public-stats")
+async def public_stats(db=Depends(get_db)):
+    """Số liệu công khai cho trang /about: chỉ con số tổng, không có tên miền."""
+    return await service.public_stats(db, EVAL_DIR / "metrics.csv")
 
 
 @app.get("/dashboard", include_in_schema=False)

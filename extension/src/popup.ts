@@ -20,6 +20,32 @@ function renderReasons(list: HTMLElement, reasons: string[]): void {
   );
 }
 
+const LAYER: Record<string, string> = {
+  list: "Danh sách", intel: "Google", rule: "Luật", ml: "Học máy", ai: "Gemini", link: "Link rút gọn",
+};
+
+/** "Điểm đến từ đâu": mỗi lớp góp bao nhiêu điểm (Explainable AI). */
+function renderBreakdown(result: AnalysisResult): void {
+  const box = $("breakdown");
+  const signals = result.breakdown ?? [];
+  if (!signals.length) return;
+  box.replaceChildren(
+    ...signals.map((s) => {
+      const row = document.createElement("div");
+      row.className = "bd-row";
+      const tag = document.createElement("span");
+      tag.className = `bd-tag ${s.layer}`;
+      tag.textContent = LAYER[s.layer] ?? s.layer;
+      const pts = document.createElement("b");
+      pts.textContent = s.points > 0 ? `+${s.points}` : "0";
+      row.append(tag, pts);
+      row.title = s.label;
+      return row;
+    }),
+  );
+  box.classList.remove("hidden");
+}
+
 // ---------- Kết quả của tab hiện tại + nút báo sai ----------
 async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
   const verdictEl = $("verdict");
@@ -40,6 +66,7 @@ async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
   verdictEl.className = `chip ${result.verdict}`;
   verdictEl.textContent = `${LABEL[result.verdict]} · điểm ${result.score}`;
   renderReasons($("reasons"), result.reasons);
+  renderBreakdown(result);
   $("source").textContent = `Nguồn kết quả: ${SOURCE[result.source] ?? result.source}`;
 
   let url: URL;

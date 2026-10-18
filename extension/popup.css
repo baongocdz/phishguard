@@ -20,3 +20,9 @@ hr { border: none; border-top: 1px solid #e2e7f0; margin: 10px 0; }
 .qr-box.safe { border-left-color: #2e7d32; }
 .qr-box.suspicious { border-left-color: #ef6c00; }
 .qr-box.phishing { border-left-color: #c62828; }
+.bd { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+.bd-row { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #e2e7f0; border-radius: 6px; padding: 1px 6px 1px 1px; font-size: 12px; cursor: help; }
+.bd-tag { color: #fff; background: #607d8b; border-radius: 4px; padding: 0 5px; font-size: 11px; font-weight: 600; }
+.bd-tag.rule { background: #2453d6; } .bd-tag.ml { background: #7b1fa2; } .bd-tag.ai { background: #00838f; }
+.bd-tag.list { background: #455a64; } .bd-tag.intel { background: #c62828; } .bd-tag.link { background: #ef6c00; }
+.bd.hidden { display: none; }

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishGuard – Giới thiệu hệ thống</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  .lead { font-size: 17px; color: var(--muted); max-width: 760px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .feat h3 { margin: 0 0 6px; font-size: 16px; }
+  .feat p { margin: 0; color: var(--muted); font-size: 14px; }
+  .flow { display: flex; flex-direction: column; gap: 8px; }
+  .step { display: grid; grid-template-columns: 34px 170px 1fr; gap: 12px; align-items: center;
+          background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .step .n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+             color: #fff; font-weight: 700; background: var(--primary); }
+  .step b { font-size: 15px; }
+  .step span { color: var(--muted); font-size: 14px; }
+  .step.ai .n { background: #00838f; } .step.ml .n { background: #7b1fa2; } .step.list .n { background: #455a64; }
+  @media (max-width: 640px) { .step { grid-template-columns: 34px 1fr; } .step span { grid-column: 2; } }
+  .imgs { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 12px; align-items: start; }
+  .imgs img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+  @media (max-width: 900px) { .imgs { grid-template-columns: 1fr 1fr; } }
+  .best td { font-weight: 700; }
+  h2 { margin-top: 36px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">🛡️ PhishGuard</div>
+  <nav><a href="/">Kiểm tra</a><a href="/dashboard">Quản trị</a><a href="/about" class="active">Giới thiệu</a><a href="/docs">API</a></nav>
+</header>
+
+<main class="wrap" style="max-width:1100px">
+  <h1 style="font-size:30px;margin-bottom:6px">Hệ thống phát hiện lừa đảo trực tuyến nhiều lớp</h1>
+  <p class="lead">PhishGuard kết hợp danh sách đen/trắng, bộ luật nhận diện giả mạo, mô hình học máy tự huấn luyện
+    và AI ngôn ngữ lớn (Gemini) để phát hiện <b>trang web giả mạo</b>, <b>mã QR độc (quishing)</b>,
+    <b>email</b> và <b>tin nhắn lừa đảo</b> — qua Chrome extension, trang web và dashboard quản trị.</p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Thành phần</h2>
+  <div class="grid3">
+    <div class="card feat"><h3>🧩 Chrome extension</h3><p>Tự kiểm tra mọi trang đang mở, banner cảnh báo, cảnh báo khi rê chuột vào link, quét mã QR trên màn hình, phân tích email trong Gmail, chặn chuyển hướng quảng cáo.</p></div>
+    <div class="card feat"><h3>🌐 Trang web kiểm tra</h3><p>Ai cũng dùng được, không cần cài đặt: dán link, tải ảnh mã QR, dán email hoặc file .eml, dán tin nhắn SMS/Zalo.</p></div>
+    <div class="card feat"><h3>📊 Dashboard quản trị</h3><p>Thống kê theo ngày, nguồn kết luận, tên miền độc nhiều nhất; duyệt báo cáo người dùng; quản lý danh sách đen/trắng.</p></div>
+    <div class="card feat"><h3>🤖 Học máy tự huấn luyện</h3><p>Logistic Regression trên n-gram ký tự, học từ 175.000 tên miền (PhiUSIIL). Chạy 0,01 ms/tên miền, không cần GPU.</p></div>
+    <div class="card feat"><h3>✨ AI Gemini</h3><p>Đọc hiểu nội dung trang/email khi các lớp trước chưa chắc chắn. Có cơ chế chống prompt injection.</p></div>
+    <div class="card feat"><h3>🔍 Giải thích được</h3><p>Mỗi kết quả cho biết từng lớp góp bao nhiêu điểm — người dùng hiểu vì sao trang bị cảnh báo.</p></div>
+  </div>
+
+  <h2>Luồng phát hiện</h2>
+  <div class="flow">
+    <div class="step list"><div class="n">1</div><b>Danh sách đen / trắng</b><span>Tên miền đã biết: kết luận ngay, không tốn tài nguyên.</span></div>
+    <div class="step list"><div class="n">2</div><b>Bộ nhớ đệm 24 giờ</b><span>Trang vừa kiểm tra thì trả kết quả cũ (các bước 1–2 hỏi CSDL song song).</span></div>
+    <div class="step"><div class="n">3</div><b>Bộ luật</b><span id="rule-desc">Giả mạo thương hiệu (cả kiểu faceb00k), đuôi tên miền rẻ, từ khóa dụ dỗ, IP, punycode, mật khẩu trên HTTP…</span></div>
+    <div class="step ml"><div class="n">4</div><b>Học máy</b><span>Cộng tối đa 0,3 điểm khi tên miền "trông giống" trang lừa đảo — một mình không kết luận lừa đảo.</span></div>
+    <div class="step ai"><div class="n">5</div><b>AI Gemini</b><span>Chỉ gọi khi trang có form và chưa chắc chắn. Kết luận nặng hơn thắng → trang không thể "dụ" AI hạ cảnh báo.</span></div>
+    <div class="step"><div class="n">6</div><b>Kết luận + giải thích</b><span>≥ 0,6 lừa đảo · ≥ 0,3 đáng ngờ · còn lại an toàn. Ghi thống kê (không lưu trang an toàn người dùng mở).</span></div>
+  </div>
+
+  <h2>Kết quả đánh giá</h2>
+  <p class="muted">Tập test <b>43.808 tên miền</b> của bộ dữ liệu PhiUSIIL (UCI, 2024). Chỉ dùng tên miền vì trong dataset,
+    100% URL hợp lệ có dạng <code>https://www.&lt;domain&gt;</code> — dùng URL đầy đủ sẽ cho kết quả ~100% vô nghĩa.
+    FPR = tỉ lệ trang thật bị chặn nhầm.</p>
+  <div class="card table-wrap"><table id="metrics"></table></div>
+  <p class="muted">Trên mẫu 59 tên miền, mô hình học máy đạt độ chính xác ngang Gemini (0,797) nhưng nhanh hơn khoảng 260.000 lần và miễn phí
+    — vì vậy hệ thống chỉ hỏi Gemini khi thật sự cần.</p>
+  <div class="imgs">
+    <img src="/eval/roc.png" alt="Đường ROC của các phương pháp">
+    <img src="/eval/cm_rules.png" alt="Ma trận nhầm lẫn: bộ luật">
+    <img src="/eval/cm_ml.png" alt="Ma trận nhầm lẫn: học máy">
+    <img src="/eval/cm_combined.png" alt="Ma trận nhầm lẫn: kết hợp">
+  </div>
+
+  <h2>Bảo mật & quyền riêng tư</h2>
+  <div class="grid3">
+    <div class="card feat"><h3>Không lộ khóa</h3><p>API key nằm trong biến môi trường, không có trong mã nguồn.</p></div>
+    <div class="card feat"><h3>Tối thiểu dữ liệu</h3><p>Chỉ gửi chữ trên trang khi có form; không gửi hộp thư/nhắn tin; không lưu URL đầy đủ hay nội dung email.</p></div>
+    <div class="card feat"><h3>Chống tấn công</h3><p>Chống prompt injection, giới hạn 30 lượt/phút mỗi IP, cảnh báo hiển thị bằng Shadow DOM + textContent.</p></div>
+  </div>
+</main>
+<footer class="foot">PhishGuard · Đồ án phát hiện lừa đảo trực tuyến</footer>
+
+<script>
+const fmt = (n) => Number(n).toLocaleString("vi-VN");
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => (k === "class" ? (node.className = v) : node.setAttribute(k, v)));
+  children.flat().forEach((c) => node.append(c instanceof Node ? c : document.createTextNode(String(c ?? ""))));
+  return node;
+}
+fetch("/public-stats").then((r) => r.json()).then((s) => {
+  const kpis = [
+    [fmt(s.total), "lượt kiểm tra"], [fmt(s.phishing), "trang/email lừa đảo phát hiện"],
+    [fmt(s.qr), "mã QR đã quét"], [fmt(s.email), "email/tin nhắn đã phân tích"],
+    [fmt(s.brands), "thương hiệu được bảo vệ"], [`${fmt(s.blacklist)} / ${fmt(s.whitelist)}`, "danh sách đen / tin cậy"],
+  ];
+  document.getElementById("kpis").replaceChildren(...kpis.map(([v, l]) =>
+    el("div", { class: "kpi" }, el("div", { class: "v" }, v), el("div", { class: "l" }, l))));
+  const cols = ["Phương pháp", "Precision", "Recall", "F1", "ROC-AUC", "FPR"];
+  const rows = s.metrics.map((m) => el("tr", { class: m["Phương pháp"].startsWith("Kết hợp") ? "best" : "" },
+    cols.map((c) => el("td", {}, c === "FPR" ? `${(m[c] * 100).toFixed(1)}%` : m[c]))));
+  document.getElementById("metrics").replaceChildren(el("tr", {}, cols.map((c) => el("th", {}, c))), ...rows);
+}).catch(() => {});
+</script>
+</body>
+</html>
