@@ -77,3 +77,5 @@ npm run build                        # rồi Load unpacked thư mục extension/
 ## Deploy
 `render.yaml` ở thư mục gốc (Render Blueprint, `rootDir: backend`). Mỗi lần push lên `main`, Render tự deploy lại.
 Chi tiết: [backend/README.md](backend/README.md).
+
+Ghi chú nội bộ (tính năng, cấu hình, sự cố đã gặp, hướng phát triển): [docs/GHI_CHU_DU_AN.md](docs/GHI_CHU_DU_AN.md).
