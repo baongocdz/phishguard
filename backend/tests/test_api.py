@@ -376,3 +376,22 @@ def test_env_var_names_match_settings():
     names |= set(re.findall(r"^(PHISHGUARD_[A-Z_]+)=", (root / ".env.example").read_text(encoding="utf-8"), re.M))
     fields = {f"PHISHGUARD_{f.upper()}" for f in Settings.model_fields}
     assert names <= fields, names - fields
+
+
+# ---------------- Thiết bị mạng nội bộ ----------------
+from app.domains import is_lan_host
+
+
+@pytest.mark.parametrize("host,lan", [
+    ("192.168.1.1", True), ("10.0.0.138", True), ("172.20.1.5", True), ("nas.local", True),
+    ("router.lan", True), ("127.0.0.1", False), ("8.8.8.8", False), ("example.com", False),
+])
+def test_is_lan_host(host, lan):
+    assert is_lan_host(host) is lan
+
+
+def test_router_login_page_is_not_phishing():
+    req = AnalyzeRequest(url="http://192.168.1.1/login.html", hostname="192.168.1.1",
+                         protocol="http:", has_password_field=True, form_count=1)
+    assert run_heuristics(req).verdict == "safe"
+    assert run_heuristics(req.model_copy(update={"hostname": "203.0.113.9"})).verdict == "phishing"

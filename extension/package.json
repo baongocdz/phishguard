@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "node test/e2e.mjs"
   },
   "description": "",
   "main": "index.js",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/chrome": "^0.3.4",
     "esbuild": "^0.28.2",
+    "puppeteer": "^24.43.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {

@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from . import gemini_client
 from .config import settings
-from .domains import cache_key, candidate_domains
+from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
 from . import ml, safebrowsing, shortlinks, text_ml
@@ -55,8 +55,8 @@ def should_call_gemini(req: AnalyzeRequest, heuristic: AnalyzeResponse) -> bool:
     - phải có API key;
     - luật chưa kết luận chắc chắn là phishing (điểm < 0.6);
     - trang có form/ô mật khẩu hoặc đã có dấu hiệu nghi ngờ từ luật."""
-    if not settings.gemini_api_key:
-        return False
+    if not settings.gemini_api_key or is_lan_host(req.hostname):
+        return False  # không gửi nội dung trang trong mạng nội bộ ra ngoài
     if heuristic.score >= 0.6:
         return False
     return req.has_password_field or req.form_count > 0 or heuristic.score >= 0.2

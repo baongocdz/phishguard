@@ -11,6 +11,27 @@ def is_ip(hostname: str) -> bool:
         return False
 
 
+LAN_SUFFIXES = (".local", ".lan", ".home", ".home.arpa", ".internal")
+# Chỉ các dải mạng nội bộ thật (không dùng ip.is_private vì nó gồm cả dải dành cho
+# tài liệu như 203.0.113.0/24). Giữ giống isLanHost trong extension/src/analyzer.ts.
+LAN_NETWORKS = [ipaddress.ip_network(n) for n in (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fc00::/7", "fe80::/10",
+)]
+
+
+def is_lan_host(hostname: str) -> bool:
+    """Thiết bị trong mạng nội bộ (modem 192.168.1.1, NAS, máy in...): không xét lừa đảo.
+    127.0.0.1 KHÔNG tính để trang demo chạy ở máy vẫn được chấm như thường."""
+    host = hostname.lower().rstrip(".")
+    if host.endswith(LAN_SUFFIXES):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(ip in net for net in LAN_NETWORKS if ip.version == net.version)
+
+
 def candidate_domains(hostname: str) -> list[str]:
     """mail.google.com -> [mail.google.com, google.com].
 

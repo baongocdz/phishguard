@@ -3,6 +3,16 @@ import type { AnalysisResult, EmailInfo, PageInfo, ReportInfo } from "./types";
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
+/** Thiết bị trong mạng nội bộ (modem 192.168.1.1, NAS...). Giữ giống is_lan_host ở backend:
+ *  127.0.0.1 không tính để trang demo chạy ở máy vẫn được chấm. */
+export function isLanHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  if ([".local", ".lan", ".home", ".home.arpa", ".internal"].some((s) => host.endsWith(s))) return true;
+  if (!IPV4.test(host)) return false;
+  const [a, b] = host.split(".").map(Number);
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+}
+
 // Giữ đồng bộ với BRANDS / SUSPICIOUS_TLDS / LURE_WORDS trong backend/app/heuristics.py.
 const BRANDS: Record<string, string[]> = {
   paypal: ["paypal.com"],
@@ -95,6 +105,9 @@ function lookalikeBrand(host: string, parts: string[]): string | undefined {
 export async function analyzeLocal(info: Pick<PageInfo, "url" | "hostname" | "protocol" | "hasPasswordField">): Promise<AnalysisResult> {
   const reasons: string[] = [];
   let score = 0;
+  if (isLanHost(info.hostname)) {
+    return { verdict: "safe", score: 0, reasons: ["Thiết bị trong mạng nội bộ — không xét lừa đảo."], source: "local" };
+  }
 
   if (info.protocol !== "https:") {
     score += 0.2;
@@ -156,6 +169,8 @@ export async function analyzeLocal(info: Pick<PageInfo, "url" | "hostname" | "pr
  * Nếu Backend lỗi hoặc quá API_TIMEOUT_MS, tự động lùi về analyzeLocal.
  */
 export async function analyze(info: PageInfo): Promise<AnalysisResult> {
+  // Địa chỉ mạng nội bộ: chấm tại chỗ, không gửi lên máy chủ.
+  if (isLanHost(info.hostname)) return analyzeLocal(info);
   try {
     const res = await fetch(`${API_BASE}/analyze`, {
       method: "POST",

@@ -1,6 +1,6 @@
 import re
 
-from .domains import is_ip
+from .domains import is_ip, is_lan_host
 from .schemas import AnalyzeRequest, AnalyzeResponse, Signal
 
 
@@ -125,6 +125,10 @@ def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
     hỏi thêm Gemini."""
     t = Tally()
     host = req.hostname.lower().rstrip(".")
+    if is_lan_host(host):
+        t.add(0.0, "Thiết bị trong mạng nội bộ (modem, máy in, NAS...) — không xét lừa đảo.")
+        return AnalyzeResponse(verdict="safe", score=0.0, reasons=t.reasons, source="heuristic",
+                               breakdown=t.signals)
 
     if req.protocol != "https:":
         t.add(0.2, "Trang không dùng HTTPS.")
