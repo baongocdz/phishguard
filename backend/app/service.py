@@ -149,7 +149,8 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         return AnalyzeResponse(
             verdict="phishing", score=1.0,
             reasons=["Tên miền nằm trong danh sách đen."], source="blacklist",
-            breakdown=[Signal(layer="list", label=f"Danh sách đen: {black['domain']}", points=1.0)],
+            breakdown=[Signal(layer="list", points=1.0, label=f"Danh sách đen: {black['domain']}"
+                              + (" (nguồn OpenPhish)" if black.get("source") == "openphish" else ""))],
         )
 
     if white:

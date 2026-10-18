@@ -98,3 +98,5 @@ table.compact td .ghost { padding: 2px 8px; font-size: 13px; }
 .bd-tag.list { background: #455a64; } .bd-tag.intel { background: #c62828; } .bd-tag.link { background: #ef6c00; }
 @media (max-width: 560px) { .bd-row { grid-template-columns: 1fr 52px; } .bd-row .bd-tag { grid-column: 1 / -1; } }
 .bd-tag.age { background: #6d4c41; } .bd-tag.community { background: #ad1457; }
+.feed-row { margin-top: 6px; font-size: 13px; }
+.tag.openphish { color: #c62828; border-color: #f2b8b5; }

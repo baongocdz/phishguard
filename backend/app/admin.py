@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .config import settings
+from . import threatfeeds
 from .deps import get_db
 
 
@@ -97,6 +98,7 @@ async def stats(days: int = 7, db=Depends(get_db)):
         "reports": reports,
         "whitelist": wl,
         "blacklist": bl,
+        "openphish": await db["meta"].find_one({"_id": "openphish"}, {"_id": 0}),
     }
 
 
@@ -128,10 +130,22 @@ class DomainIn(BaseModel):
 
 
 @router.get("/lists/{name}")
-async def get_list(name: ListName, db=Depends(get_db)):
-    docs = await db[name].find({}).sort("domain", 1).limit(1000).to_list()
-    return [{"domain": d["domain"], "source": d.get("source", ""), "added_at": d.get("added_at")}
-            for d in docs]
+async def get_list(name: ListName, q: str = "", limit: int = 300, db=Depends(get_db)):
+    """Tìm trên server vì danh sách đen có thể có hàng nghìn mục (OpenPhish)."""
+    flt = {"domain": {"$regex": re.escape(q.strip().lower())}} if q.strip() else {}
+    # Mục do quản trị viên/mẫu thêm hiện trước, mục từ OpenPhish sau.
+    docs = await db[name].find(flt).sort([("source", 1), ("domain", 1)]).limit(max(1, min(limit, 1000))).to_list()
+    return {"total": await db[name].count_documents(flt),
+            "items": [{"domain": d["domain"], "source": d.get("source", ""), "added_at": d.get("added_at")}
+                      for d in docs]}
+
+
+@router.post("/feeds/openphish")
+async def sync_openphish(db=Depends(get_db)):
+    try:
+        return await threatfeeds.sync_openphish(db)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Không tải được OpenPhish: {e}")
 
 
 @router.post("/lists/{name}")

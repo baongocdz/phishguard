@@ -98,6 +98,7 @@ async function loadStats() {
   pie("chart-source", s.by_source, SOURCE);
   pie("chart-kind", s.by_kind, KIND, (k) => (k === "email" ? "email_kind" : k));
 
+  showFeedInfo(s.openphish);
   table("top-hosts", ["Tên miền", "Số lần", "Mức", ""], s.top_hosts.map((h) => [
     el("span", { class: "mono" }, h.hostname), h.count, chip(h.verdict), quickBlock(h.hostname),
   ]));
@@ -139,32 +140,56 @@ async function loadReports() {
   }), "Chưa có báo cáo nào.");
 }
 
-const LIST_SOURCE = { seed: "mẫu", sample: "mẫu", admin: "quản trị" };
-const listData = { blacklist: [], whitelist: [] };
+const LIST_SOURCE = { seed: "mẫu", sample: "mẫu", admin: "quản trị", openphish: "OpenPhish" };
 
-function renderList(name) {
-  const q = (document.querySelector(`[data-filter="${name}"]`)?.value || "").trim().toLowerCase();
-  const items = listData[name].filter((d) => d.domain.includes(q));
-  $(`${name}-count`).textContent = listData[name].length;
-  table(name, ["Tên miền", "Nguồn", ""], items.map((d) => {
+// Tìm trên server (danh sách đen có thể có hàng nghìn mục từ OpenPhish).
+async function loadList(name) {
+  const q = (document.querySelector(`[data-filter="${name}"]`)?.value || "").trim();
+  const data = await api(`/admin/lists/${name}?limit=300&q=${encodeURIComponent(q)}`);
+  if (!q) $(`${name}-count`).textContent = data.total;
+  table(name, ["Tên miền", "Nguồn", ""], data.items.map((d) => {
     const del = el("button", { class: "icon-btn", title: "Xóa khỏi danh sách" }, "✕");
     del.addEventListener("click", async () => {
       if (!confirm(`Xóa ${d.domain} khỏi danh sách?`)) return;
       await api(`/admin/lists/${name}/${encodeURIComponent(d.domain)}`, { method: "DELETE" });
-      loadLists();
+      loadList(name);
     });
-    return [el("span", { class: "mono" }, d.domain), el("span", { class: "tag" }, LIST_SOURCE[d.source] || d.source || "mẫu"), del];
+    return [el("span", { class: "mono" }, d.domain), el("span", { class: `tag ${d.source || ""}` }, LIST_SOURCE[d.source] || d.source || "mẫu"), del];
   }), q ? "Không tìm thấy." : "Danh sách trống.");
+  const more = data.total - data.items.length;
+  if (more > 0) $(name).append(el("tr", {}, el("td", { colspan: 3, class: "muted" }, `… và ${more} mục khác (gõ vào ô tìm kiếm để lọc)`)));
 }
 
 async function loadLists() {
-  for (const name of ["blacklist", "whitelist"]) {
-    listData[name] = await api(`/admin/lists/${name}`);
-    renderList(name);
-  }
+  await Promise.all(["blacklist", "whitelist"].map(loadList));
 }
-document.querySelectorAll("[data-filter]").forEach((input) =>
-  input.addEventListener("input", () => renderList(input.dataset.filter)));
+const searchTimers = {};
+document.querySelectorAll("[data-filter]").forEach((input) => input.addEventListener("input", () => {
+  clearTimeout(searchTimers[input.dataset.filter]);
+  searchTimers[input.dataset.filter] = setTimeout(() => loadList(input.dataset.filter), 250);
+}));
+
+// ---------- Cập nhật danh sách đen từ OpenPhish ----------
+function showFeedInfo(info) {
+  $("feed-info").textContent = info?.last_sync
+    ? `OpenPhish: ${info.total} tên miền, cập nhật ${fmtTime(info.last_sync)}`
+    : "Chưa cập nhật từ OpenPhish lần nào.";
+}
+$("feed-sync").addEventListener("click", async () => {
+  const btn = $("feed-sync");
+  btn.disabled = true;
+  btn.textContent = "Đang tải…";
+  try {
+    const info = await api("/admin/feeds/openphish", { method: "POST" });
+    showFeedInfo(info);
+    btn.textContent = `✓ +${info.added} mới, −${info.removed} cũ`;
+    loadList("blacklist");
+  } catch (e) {
+    btn.textContent = "Lỗi, thử lại";
+  } finally {
+    setTimeout(() => { btn.disabled = false; btn.textContent = "↻ Cập nhật từ OpenPhish"; }, 4000);
+  }
+});
 
 document.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("click", async () => {
   const name = btn.dataset.add;

@@ -420,3 +420,17 @@ def test_new_domain_adds_age_signal(monkeypatch):
     r = c.post("/analyze", json=payload("https://brand-new-shop.example/", "brand-new-shop.example")).json()
     assert r["verdict"] == "suspicious"
     assert any(s["layer"] == "age" and "2 ngày" in s["label"] for s in r["breakdown"])
+
+
+# ---------------- OpenPhish ----------------
+from app import threatfeeds
+
+
+def test_parse_feed_keeps_exact_hosts_and_skips_trusted():
+    feed = "\n".join([
+        "https://abc-login.pages.dev/x", "http://vigya-29.github.io/", "https://docs.google.com/forms/d/1",
+        "http://192.168.1.10/a", "https://www.vietcombank.com.vn/fake", "https://evil.example/p", "", "# chú thích",
+    ])
+    hosts = threatfeeds.parse_feed(feed, trusted={"example.org"})
+    assert hosts == {"abc-login.pages.dev", "vigya-29.github.io", "evil.example"}
+    assert "pages.dev" not in hosts and "github.io" not in hosts

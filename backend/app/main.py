@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 
-from . import admin, service
+from . import admin, service, threatfeeds
 from .config import settings
 from .deps import get_db
 from .rate_limit import limit_by_ip
@@ -32,7 +33,10 @@ async def lifespan(app: FastAPI):
     await db["events"].create_index([("at", DESCENDING)], expireAfterSeconds=90 * 24 * 3600)
     await db["reports"].create_index([("at", DESCENDING)])
     app.state.db = db
+    # Cập nhật danh sách đen từ OpenPhish ở nền (không chặn khởi động).
+    feed_task = asyncio.create_task(threatfeeds.sync_if_stale(db))
     yield
+    feed_task.cancel()
     await client.close()
 
 

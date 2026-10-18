@@ -143,9 +143,16 @@ if (ADMIN) {
 
   await test("Dashboard: tìm kiếm trong danh sách tin cậy", async () => {
     await page.type('[data-filter="whitelist"]', "vietcombank");
-    const rows = await page.$$eval("#whitelist tr", (rs) => rs.length - 1);
-    if (rows !== 1) throw new Error(`ra ${rows} dòng`);
-    return "lọc còn 1 dòng";
+    await page.waitForFunction(() => document.querySelectorAll("#whitelist tr").length === 2, { timeout: 10000 });
+    return "tìm trên server, còn 1 dòng";
+  });
+
+  await test("Dashboard: cập nhật danh sách đen từ OpenPhish", async () => {
+    await page.click("#feed-sync");
+    await page.waitForFunction(() => /✓|Lỗi/.test(document.getElementById("feed-sync").textContent), { timeout: 60000 });
+    const text = await page.$eval("#feed-sync", (e) => e.textContent);
+    if (!text.includes("✓")) throw new Error(text);
+    return `${text} — ${await page.$eval("#feed-info", (e) => e.textContent)}`;
   });
 
   await test("Dashboard: báo cáo thử xuất hiện rồi xóa được", async () => {
