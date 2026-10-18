@@ -9,7 +9,7 @@ Hệ thống phát hiện lừa đảo trực tuyến: **trang web giả mạo (
 |---|---|
 | **Chrome extension** ([`extension/`](extension/)) | Tự kiểm tra mọi trang đang mở, hiện banner cảnh báo; cảnh báo khi rê chuột vào link nguy hiểm; quét mã QR trên màn hình; phân tích email đang mở trong Gmail; báo cáo kết quả sai |
 | **Backend API** ([`backend/`](backend/)) | FastAPI + MongoDB Atlas + Gemini, deploy trên Render |
-| **Trang web kiểm tra** (`/`) | Kiểm tra link, ảnh mã QR, email (dán hoặc mở file `.eml`), tin nhắn — không cần cài extension |
+| **Trang web kiểm tra** (`/`) | Kiểm tra link, mã QR (ảnh hoặc **camera điện thoại**), email (dán hoặc `.eml`), tin nhắn — không cần cài extension; cài được như ứng dụng (PWA) |
 | **Dashboard quản trị** (`/dashboard`) | Biểu đồ thống kê, cảnh báo gần đây, duyệt báo cáo người dùng, quản lý danh sách đen/trắng |
 | **Đánh giá + ML** ([`backend/eval/`](backend/eval/)) | 2 mô hình tự huấn luyện: tên miền (219 nghìn tên miền, AUC 0.914) và email/tin nhắn (20 nghìn văn bản, F1 0.966) |
 | **Trang giới thiệu** (`/about`) | Kiến trúc, luồng phát hiện, kết quả đánh giá — dùng để trình bày |
@@ -65,7 +65,7 @@ pip install -r requirements.txt
 copy .env.example .env               # rồi điền PHISHGUARD_MONGO_URI, PHISHGUARD_GEMINI_API_KEY, PHISHGUARD_ADMIN_TOKEN
 python -m scripts.seed               # nạp whitelist/blacklist mẫu
 uvicorn app.main:app --reload --port 8000
-pytest -q                            # 53 test, không cần MongoDB
+pytest -q                            # 59 test, không cần MongoDB
 
 # Đánh giá + huấn luyện lại mô hình
 pip install -r eval/requirements-eval.txt

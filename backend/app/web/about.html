@@ -47,8 +47,8 @@
   <h2>Thành phần</h2>
   <div class="grid3">
     <div class="card feat"><h3>🧩 Chrome extension</h3><p>Tự kiểm tra mọi trang đang mở, banner cảnh báo, cảnh báo khi rê chuột vào link, quét mã QR trên màn hình, phân tích email trong Gmail, chặn chuyển hướng quảng cáo.</p></div>
-    <div class="card feat"><h3>🌐 Trang web kiểm tra</h3><p>Ai cũng dùng được, không cần cài đặt: dán link, tải ảnh mã QR, dán email hoặc file .eml, dán tin nhắn SMS/Zalo.</p></div>
-    <div class="card feat"><h3>📊 Dashboard quản trị</h3><p>Thống kê theo ngày, nguồn kết luận, tên miền độc nhiều nhất; duyệt báo cáo người dùng; quản lý danh sách đen/trắng.</p></div>
+    <div class="card feat"><h3>🌐 Trang web kiểm tra</h3><p>Ai cũng dùng được, không cần cài đặt: dán link, <b>quét mã QR bằng camera điện thoại</b> hoặc tải ảnh, dán email hoặc file .eml, dán tin nhắn SMS/Zalo. Cài được như ứng dụng trên điện thoại.</p></div>
+    <div class="card feat"><h3>📊 Dashboard quản trị</h3><p>Thống kê theo ngày, nguồn kết luận, tên miền độc nhiều nhất; duyệt báo cáo người dùng; quản lý danh sách đen/trắng; cập nhật từ OpenPhish.</p></div>
     <div class="card feat"><h3>🤖 Học máy tự huấn luyện</h3><p>Hai mô hình: tên miền (n-gram ký tự, 175.000 tên miền PhiUSIIL, AUC 0,914) và email/tin nhắn (từ + cặp từ, 16.000 văn bản, F1 0,966, AUC 0,996). Chạy trong vài mili-giây, không cần GPU.</p></div>
     <div class="card feat"><h3>✨ AI Gemini</h3><p>Đọc hiểu nội dung trang/email khi các lớp trước chưa chắc chắn. Có cơ chế chống prompt injection.</p></div>
     <div class="card feat"><h3>🔍 Giải thích được</h3><p>Mỗi kết quả cho biết từng lớp góp bao nhiêu điểm — người dùng hiểu vì sao trang bị cảnh báo.</p></div>
@@ -56,10 +56,10 @@
 
   <h2>Luồng phát hiện</h2>
   <div class="flow">
-    <div class="step list"><div class="n">1</div><b>Danh sách đen / trắng</b><span>Tên miền đã biết: kết luận ngay, không tốn tài nguyên.</span></div>
+    <div class="step list"><div class="n">1</div><b>Danh sách đen / trắng</b><span>Tên miền đã biết: kết luận ngay. Danh sách đen tự cập nhật từ OpenPhish (hàng trăm trang lừa đảo đang hoạt động).</span></div>
     <div class="step list"><div class="n">2</div><b>Bộ nhớ đệm + Google</b><span>Trang vừa kiểm tra trong 24 giờ thì trả kết quả cũ; chưa có thì hỏi Google Safe Browsing. Link rút gọn (bit.ly...) được mở ra để xét đích thật.</span></div>
     <div class="step"><div class="n">3</div><b>Bộ luật</b><span id="rule-desc">Giả mạo thương hiệu (cả kiểu faceb00k, vietcornbank), đuôi tên miền rẻ, từ khóa dụ dỗ, IP, punycode, mật khẩu trên HTTP…</span></div>
-    <div class="step ml"><div class="n">4</div><b>Học máy</b><span>Cộng tối đa 0,3 điểm khi tên miền "trông giống" trang lừa đảo — một mình không kết luận lừa đảo.</span></div>
+    <div class="step ml"><div class="n">4</div><b>Học máy + tín hiệu ngoài</b><span>Mô hình học máy (tối đa +0,3), tên miền mới đăng ký (tra RDAP, tối đa +0,3), nhiều người dùng cùng báo cáo (+0,3). Mỗi tín hiệu một mình không kết luận lừa đảo.</span></div>
     <div class="step ai"><div class="n">5</div><b>AI Gemini</b><span>Chỉ gọi khi trang có form và chưa chắc chắn. Kết luận nặng hơn thắng → trang không thể "dụ" AI hạ cảnh báo.</span></div>
     <div class="step"><div class="n">6</div><b>Kết luận + giải thích</b><span>≥ 0,6 lừa đảo · ≥ 0,3 đáng ngờ · còn lại an toàn. Ghi thống kê (không lưu trang an toàn người dùng mở).</span></div>
   </div>

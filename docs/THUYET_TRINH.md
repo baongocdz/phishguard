@@ -99,7 +99,10 @@ Không phải ai cũng cài extension, nên em làm thêm trang web kiểm tra v
 - **Link**: dán đường link bất kỳ. **[Bấm mẫu `secure-vietcombank-xacminh.top`]** Kết quả là lừa đảo, kèm bảng
   "Vì sao ra kết quả này?": tên miền chứa chữ Vietcombank nhưng không phải tên miền thật của Vietcombank, đuôi `.top`
   hay bị lạm dụng, có từ "xacminh" để dụ dỗ, và mô hình học máy cũng đánh giá giống trang lừa đảo.
-- **Mã QR**: tải ảnh hoặc dán ảnh bằng Ctrl+V. Ảnh được đọc **ngay trên trình duyệt**, không tải lên máy chủ.
+- **Mã QR**: tải ảnh, dán ảnh bằng Ctrl+V, hoặc **quét trực tiếp bằng camera**.
+  **[Màn hình: mở trang trên điện thoại → "Quét bằng camera" → đưa vào một mã QR in trên giấy]**
+  Đây là tình huống quishing thật ngoài đời: mã QR dán ở bãi xe, quán ăn, tờ rơi. Hình ảnh được đọc **ngay trên
+  điện thoại**, không gửi lên máy chủ. Trang web này còn **cài được như một ứng dụng** trên điện thoại.
 - **Email**: dán nội dung hoặc mở file `.eml`. **[Bấm "Điền email mẫu" → Phân tích]** Hệ thống phát hiện người gửi
   xưng là Vietcombank nhưng gửi từ tên miền lạ, địa chỉ trả lời khác người gửi, link hiển thị là trang thật nhưng
   thực ra dẫn tới trang khác, lời lẽ hối thúc và đòi mã OTP.
@@ -115,13 +118,17 @@ Nếu link là **link rút gọn** như bit.ly, hệ thống tự mở ra để 
 
 Đây là phần cốt lõi. Mỗi đường link đi qua **sáu lớp**, từ rẻ và nhanh đến đắt và chậm:
 
-1. **Danh sách đen, danh sách trắng**: tên miền đã biết thì kết luận ngay.
+1. **Danh sách đen, danh sách trắng**: tên miền đã biết thì kết luận ngay. Danh sách đen **tự cập nhật từ OpenPhish**,
+   nguồn dữ liệu về hàng trăm trang lừa đảo đang hoạt động trên thế giới.
 2. **Bộ nhớ đệm và Google Safe Browsing**: trang vừa kiểm tra trong 24 giờ thì dùng lại kết quả. Chưa có thì hỏi
    danh sách trang độc hại của Google.
 3. **Bộ luật**: em xây dựng các luật nhận diện **giả mạo 26 thương hiệu** phổ biến ở Việt Nam, kể cả kiểu viết lách như
    `faceb00k` (số 0 thay chữ o), `vietcornbank` (chữ r-n thay cho chữ m), hay sai một hai ký tự như `netfllx`; nhận diện
    đuôi tên miền rẻ tiền, từ khóa dụ dỗ, địa chỉ IP, ô mật khẩu trên kết nối không mã hóa.
-4. **Học máy**: mô hình em tự huấn luyện đánh giá xem tên miền "trông có giống" trang lừa đảo không.
+4. **Học máy và các tín hiệu bổ sung**: mô hình em tự huấn luyện đánh giá tên miền "trông có giống" trang lừa đảo
+   không; hệ thống tra **tuổi tên miền** (trang lừa đảo thường dùng tên miền vừa đăng ký vài ngày); và nếu **nhiều người
+   dùng khác nhau cùng báo cáo** một trang thì trang đó bị nâng mức cảnh báo. Mỗi tín hiệu này một mình không đủ để
+   kết luận lừa đảo, mà chỉ đẩy trang lên mức "đáng ngờ" để các lớp sau xem kỹ hơn.
 5. **AI Gemini**: chỉ được gọi khi trang có form đăng nhập và các lớp trước **chưa chắc chắn**. Gemini đọc nội dung
    trang và đánh giá.
 6. **Kết luận và giải thích**: từ 0,6 điểm trở lên là lừa đảo, từ 0,3 là đáng ngờ.
@@ -179,7 +186,11 @@ Người vận hành đăng nhập bằng mã quản trị để xem:
 
 **[Màn hình: bấm "Chặn" một tên miền → kiểm tra lại trên trang chủ → nguồn "Danh sách đen"]**
 
-Thay đổi có hiệu lực ngay lập tức. Đây là vòng phản hồi giúp hệ thống tốt dần lên theo thời gian.
+Thay đổi có hiệu lực ngay lập tức. Ngoài ra còn nút **"Cập nhật từ OpenPhish"** để tải danh sách trang lừa đảo mới nhất.
+
+Hệ thống còn **tự học từ cộng đồng**: khi từ ba người dùng khác nhau trở lên cùng báo một trang là lừa đảo, trang đó tự
+động bị nâng mức cảnh báo. Để chống phá hoại, em chỉ đếm số người khác nhau (lưu dạng mã băm, không lưu địa chỉ IP), và
+trang của các thương hiệu chính chủ hay trong danh sách tin cậy thì không bị ảnh hưởng.
 
 ---
 
@@ -198,9 +209,10 @@ Vì là công cụ bảo mật, bản thân PhishGuard cũng phải an toàn:
 ## 9. Kiểm thử (khoảng 30 giây)
 
 Hệ thống được kiểm thử ở **bốn lớp**:
-- **53 bài test** cho máy chủ.
+- **59 bài test** cho máy chủ.
 - **13 kịch bản** chạy extension trong Chrome thật một cách tự động.
-- **13 kịch bản** cho trang web và trang quản trị, gồm cả tải ảnh QR thật và kiểm tra giao diện trên điện thoại.
+- **16 kịch bản** cho trang web và trang quản trị, gồm cả tải ảnh QR thật, **giả lập camera phát video có mã QR**,
+  và kiểm tra giao diện trên điện thoại.
 - Một script kiểm tra nhanh toàn bộ máy chủ thật.
 
 Mỗi lần cập nhật mã nguồn, **GitHub tự chạy test** (CI). Nhờ kiểm thử tự động, em đã phát hiện và sửa những lỗi như
@@ -261,6 +273,11 @@ hay Facebook. Người dùng luôn có nút "Mở lần này" hoặc "Luôn cho 
 Đáp: Các dự án em tham khảo thường chỉ làm một kênh (web hoặc email) và hầu như không công bố số liệu đánh giá. PhishGuard
 làm cả bốn kênh, có hai mô hình tự huấn luyện kèm đánh giá trên bộ dữ liệu thật, có phần giải thích, và có các tính năng
 riêng cho Việt Nam như nhận diện ngân hàng Việt Nam và link tiếp thị Shopee, Lazada.
+
+**Hỏi: Nếu kẻ xấu rủ nhau báo cáo sai để làm hại một trang thật thì sao?**
+Đáp: Hệ thống chỉ đếm số người khác nhau, một người bấm nhiều lần vẫn tính là một. Điểm cộng đồng chỉ đưa trang lên mức
+"đáng ngờ", không tự kết luận lừa đảo. Trang trong danh sách tin cậy hay tên miền chính chủ của thương hiệu thì không bị
+ảnh hưởng. Mọi báo cáo đều hiện trên dashboard để quản trị viên duyệt.
 
 **Hỏi: Công nghệ sử dụng?**
 Đáp: Extension viết bằng TypeScript theo chuẩn Manifest V3. Máy chủ dùng Python FastAPI, cơ sở dữ liệu MongoDB Atlas,

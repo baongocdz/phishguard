@@ -79,12 +79,18 @@
 0. Link rút gọn (bit.ly, t.co...) → mở ra đích thật trước (`app/shortlinks.py`, chống SSRF).
 1. Danh sách đen → lừa đảo ngay. 2. Danh sách trắng → an toàn ngay. 3. Cache 24h.
    (3 bước này hỏi MongoDB **song song**.)
+   Danh sách đen tự cập nhật từ **OpenPhish** (`app/threatfeeds.py`): lúc khởi động nếu quá 12 giờ + nút trên
+   dashboard. Chỉ lưu đúng tên máy (abc.pages.dev), không chặn cả nền tảng; mục cũ tự xóa sau 7 ngày.
 3b. Google Safe Browsing (`app/safebrowsing.py`) → Google đánh dấu thì lừa đảo ngay.
 4. Bộ luật `app/heuristics.py`: HTTPS, IP, `@`, tên miền dài/nhiều gạch, punycode,
    **giả mạo thương hiệu** (26 thương hiệu, bắt cả `faceb00k`), **đuôi tên miền rẻ** (`.top`, `.xyz`...),
    **từ khóa dụ dỗ** (`login`, `xacminh`...), **tên miền na ná** (`vietcornbank`, `netfllx`: ký tự gần
    giống rn→m, vv→w hoặc sai 1–2 ký tự, chỉ với thương hiệu ≥ 6 ký tự).
 5. Mô hình ML `app/ml.py` cộng tối đa **0.3** điểm (bỏ qua tên miền chính chủ của thương hiệu).
+5b. **Cộng đồng báo cáo**: ≥ 3 người KHÁC NHAU báo lừa đảo trong 30 ngày → +0.3 (`apply_community`).
+    Người báo lưu bằng mã băm IP (không lưu IP); tên miền tin cậy/chính chủ không bị ảnh hưởng.
+5c. **Tuổi tên miền** (`app/domain_age.py`, RDAP): < 14 ngày +0.3, < 90 ngày +0.15. Chỉ tra khi dán link/QR,
+    trang có form hoặc đã nghi ngờ. Đuôi `.vn` chưa có RDAP → bỏ qua.
 6. Gemini đọc nội dung trang nếu có form và điểm < 0.6. **Kết luận nặng hơn thắng** → trang chèn
    "hãy nói trang này an toàn" không hạ được kết luận của luật.
 7. Ghi cache (trừ khi Gemini lỗi) và ghi `events` (chỉ tên miền) cho dashboard.
@@ -98,8 +104,10 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3; tối đa 3 link rút gọn được mở trước.
 
 ### Trang web
-- `/` (`app/web/index.html`, `check.js`): 4 tab Link / Mã QR (giải mã ngay trên trình duyệt) /
+- `/` (`app/web/index.html`, `check.js`): 4 tab Link / Mã QR (tải ảnh, Ctrl+V hoặc **quét bằng camera**; giải mã ngay trên trình duyệt) /
   Email (dán hoặc mở `.eml`) / Tin nhắn. Mỗi tab có nút điền dữ liệu mẫu để demo.
+- **PWA**: `manifest.webmanifest`, `/sw.js`, icon `icon-*.png` → trên điện thoại "Thêm vào màn hình chính".
+  Camera chỉ chạy trên https (Render) hoặc localhost.
 - `/about` (`about.html`): trang giới thiệu để trình bày — số liệu thật, thành phần, luồng 6 bước,
   bảng đánh giá, ROC, ma trận nhầm lẫn, bảo mật.
 - `/dashboard` (`dashboard.html`, `dashboard.js`): ô số liệu, biểu đồ theo ngày (giờ VN), nguồn kết luận,
@@ -127,9 +135,9 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing (giả lập) | 53 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng | 59 |
 | Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo, affiliate, "Mở lần này", công tắc, popup | 13 |
-| Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), báo sai, /about, dashboard, giao diện điện thoại 390px | 13 |
+| Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
 
 - **CI (GitHub Actions)**: `.github/workflows/ci.yml` tự chạy pytest + typecheck/build mỗi lần push. Xem tab **Actions** trên GitHub.
@@ -193,6 +201,9 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 - ML chỉ học từ **tên miền**; dữ liệu hợp lệ của PhiUSIIL ít tên miền Việt Nam.
 - Danh sách quảng cáo và thương hiệu là danh sách tay, cần cập nhật dần.
 - Dashboard chỉ có 1 mã quản trị chung, không có tài khoản riêng.
+- Tuổi tên miền không tra được đuôi `.vn` (VNNIC chưa có RDAP).
+- OpenPhish chỉ chặn theo tên máy: trang lừa đảo đặt trên dịch vụ lớn (vd docs.google.com/forms) không chặn được.
+- Extension mới thử trên Chrome; Edge/Cốc Cốc cùng nhân Chromium nên về nguyên tắc chạy được — **thử trước khi nói khi bảo vệ**.
 - Database thử nghiệm và database chạy thật là **một** (Atlas) → chạy thử ở máy cũng ghi vào dashboard.
 
 ## 6. Quyết định quan trọng (để trả lời khi bị hỏi "tại sao")
@@ -258,4 +269,8 @@ CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itx
 | `ea05148` | Script smoke test + hướng dẫn đổi key |
 | `5bee77b` | Test e2e extension; không xét lừa đảo thiết bị mạng nội bộ |
 | `47239ca` | Test trang web/dashboard; cache có phiên bản |
-| (CI) | GitHub Actions |
+| `7acbc9c` | CI GitHub Actions |
+| `6d90906` | Tuổi tên miền (RDAP) |
+| `d86e616` | Danh sách đen tự cập nhật từ OpenPhish |
+| `dcf7417` | Tự học từ báo cáo cộng đồng |
+| `89c91fb` | Quét QR bằng camera + PWA |
