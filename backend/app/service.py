@@ -40,8 +40,7 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
 
 def apply_text_ml(req: EmailRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     """Cộng điểm từ mô hình học máy cho email/tin nhắn (app/text_ml.py), tối đa 0.3."""
-    prob = text_ml.predict(f"{req.subject}
-{req.body}")
+    prob = text_ml.predict(f"{req.subject}\n{req.body}")
     score = ml.combine(result.score, prob)
     if score == result.score:
         return result
