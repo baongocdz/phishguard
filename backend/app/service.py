@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 from . import gemini_client
@@ -49,23 +50,28 @@ def merge(h: AnalyzeResponse, g: GeminiOutput) -> AnalyzeResponse:
 async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
     """Luồng: blacklist -> whitelist -> cache -> luật -> (Gemini) -> ghi cache."""
     candidates = candidate_domains(req.hostname)
+    key = cache_key(req.url)
 
-    # Blacklist kiểm tra trước: nếu một tên miền nằm ở cả hai danh sách thì
-    # blacklist thắng (an toàn hơn).
-    if await db["blacklist"].find_one({"domain": {"$in": candidates}}):
+    # Hỏi 3 bảng cùng lúc thay vì lần lượt: mỗi lượt tới Atlas mất vài trăm ms.
+    black, white, cached = await asyncio.gather(
+        db["blacklist"].find_one({"domain": {"$in": candidates}}),
+        db["whitelist"].find_one({"domain": {"$in": candidates}}),
+        db["cache"].find_one({"key": key}),
+    )
+
+    # Blacklist thắng nếu một tên miền nằm ở cả hai danh sách (an toàn hơn).
+    if black:
         return AnalyzeResponse(
             verdict="phishing", score=1.0,
             reasons=["Tên miền nằm trong danh sách đen."], source="blacklist",
         )
 
-    if await db["whitelist"].find_one({"domain": {"$in": candidates}}):
+    if white:
         return AnalyzeResponse(
             verdict="safe", score=0.0,
             reasons=["Tên miền nằm trong danh sách tin cậy."], source="whitelist",
         )
 
-    key = cache_key(req.url)
-    cached = await db["cache"].find_one({"key": key})
     if cached:
         result = AnalyzeResponse(**cached["result"])
         result.source = "cache"

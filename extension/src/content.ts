@@ -10,17 +10,29 @@ function collectPageInfo(): PageInfo {
     }
   }).length;
 
+  const formCount = document.forms.length;
+  const hasPasswordField = document.querySelector("input[type='password']") !== null;
+
   return {
     url: location.href,
     hostname: location.hostname,
     protocol: location.protocol,
     title: document.title,
-    formCount: document.forms.length,
-    hasPasswordField: document.querySelector("input[type='password']") !== null,
+    formCount,
+    hasPasswordField,
     linkCount: links.length,
     externalLinkCount,
+    // Chỉ gửi chữ trên trang khi có form (lúc backend có thể hỏi Gemini),
+    // để không đẩy nội dung mọi trang người dùng đọc lên server.
+    textSnippet: formCount > 0 || hasPasswordField ? visibleText(TEXT_LIMIT) : "",
     collectedAt: Date.now(),
   };
+}
+
+const TEXT_LIMIT = 2000;
+
+function visibleText(limit: number): string {
+  return (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
 
 const HOST_ID = "phishguard-banner-host";

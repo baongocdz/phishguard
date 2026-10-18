@@ -7,6 +7,7 @@ export interface PageInfo {
   hasPasswordField: boolean;
   linkCount: number;
   externalLinkCount: number;
+  textSnippet: string; // chữ hiển thị trên trang (đã cắt ngắn), cho Gemini đọc
   collectedAt: number;
 }
 
