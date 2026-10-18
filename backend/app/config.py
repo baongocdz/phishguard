@@ -28,5 +28,8 @@ class Settings(BaseSettings):
     # Mã đăng nhập trang quản trị /dashboard. Để trống = khóa trang quản trị.
     admin_token: str = ""
 
+    # Số người báo "lừa đảo" khác nhau (trong REPORT_WINDOW_DAYS ngày) để cộng điểm cộng đồng.
+    report_threshold: int = 3
+
 
 settings = Settings()

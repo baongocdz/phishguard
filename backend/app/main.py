@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,7 +11,7 @@ from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 from . import admin, service, threatfeeds
 from .config import settings
 from .deps import get_db
-from .rate_limit import limit_by_ip
+from .rate_limit import client_ip, limit_by_ip
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -76,8 +76,8 @@ async def analyze_email(req: EmailRequest, db=Depends(get_db)):
 
 
 @app.post("/report", dependencies=[Depends(limit_by_ip)])
-async def report(req: ReportRequest, db=Depends(get_db)):
-    await service.save_report(db, req)
+async def report(req: ReportRequest, request: Request, db=Depends(get_db)):
+    await service.save_report(db, req, client_ip(request))
     return {"ok": True}
 
 

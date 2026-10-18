@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from . import gemini_client
@@ -138,10 +138,11 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
     key = f"{CACHE_VERSION}:{cache_key(req.url)}"
 
     # Hỏi 3 bảng cùng lúc thay vì lần lượt: mỗi lượt tới Atlas mất vài trăm ms.
-    black, white, cached = await asyncio.gather(
+    black, white, cached, reporters = await asyncio.gather(
         db["blacklist"].find_one({"domain": {"$in": candidates}}),
         db["whitelist"].find_one({"domain": {"$in": candidates}}),
         db["cache"].find_one({"key": key}),
+        count_reporters(db, req.hostname),
     )
 
     # Blacklist thắng nếu một tên miền nằm ở cả hai danh sách (an toàn hơn).
@@ -175,7 +176,8 @@ async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         await _save_cache(db, key, req.hostname, result)
         return result
 
-    result = await apply_domain_age(req, apply_ml(req, run_heuristics(req)))
+    result = apply_community(req, apply_ml(req, run_heuristics(req)), reporters)
+    result = await apply_domain_age(req, result)
     gemini_failed = False
 
     if should_call_gemini(req, result):
@@ -263,14 +265,45 @@ def sender_domain(req: EmailRequest) -> str:
     return _domain_of(req.sender)
 
 
-async def save_report(db, req: ReportRequest) -> None:
+REPORT_WINDOW_DAYS = 30
+
+
+def reporter_id(ip: str) -> str:
+    """Băm IP người báo (không lưu IP thật) để đếm số NGƯỜI khác nhau, không phải số lần bấm."""
+    return hashlib.sha256(f"phishguard-report:{ip}".encode()).hexdigest()[:16]
+
+
+async def count_reporters(db, hostname: str) -> int:
+    since = datetime.now(timezone.utc) - timedelta(days=REPORT_WINDOW_DAYS)
+    ids = await db["reports"].distinct(
+        "reporter", {"hostname": hostname.lower(), "kind": "phishing", "at": {"$gte": since}})
+    return len([i for i in ids if i])
+
+
+async def save_report(db, req: ReportRequest, ip: str = "") -> None:
+    host = req.hostname.lower()
     await db["reports"].insert_one({
         "url": req.url[:2048],
-        "hostname": req.hostname.lower(),
+        "hostname": host,
         "kind": req.kind,
         "note": req.note,
+        "reporter": reporter_id(ip),
         "at": datetime.now(timezone.utc),
     })
+    # Đủ người báo thì xóa kết quả cũ trong cache để lần kiểm tra sau tính điểm cộng đồng ngay.
+    if req.kind == "phishing" and await count_reporters(db, host) >= settings.report_threshold:
+        await db["cache"].delete_many({"hostname": host})
+
+
+def apply_community(req: AnalyzeRequest, result: AnalyzeResponse, reporters: int) -> AnalyzeResponse:
+    """Nhiều người khác nhau báo lừa đảo thì cộng +0.3 (một mình không đủ kết luận lừa đảo)."""
+    if reporters < settings.report_threshold or _is_official(req.hostname.lower(), OFFICIAL_DOMAINS):
+        return result
+    score = min(1.0, round(result.score + 0.3, 2))
+    reason = f"{reporters} người dùng khác nhau đã báo trang này là lừa đảo."
+    signal = Signal(layer="community", label=reason, points=round(score - result.score, 2))
+    return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
+                           source=result.source, breakdown=result.breakdown + [signal])
 
 
 async def public_stats(db, metrics_csv) -> dict:

@@ -14,12 +14,21 @@ class FakeCollection:
             if isinstance(cond, dict) and "$in" in cond:
                 if doc.get(field) not in cond["$in"]:
                     return False
+            elif isinstance(cond, dict) and "$gte" in cond:
+                if doc.get(field) is None or doc.get(field) < cond["$gte"]:
+                    return False
             elif doc.get(field) != cond:
                 return False
         return True
 
     async def find_one(self, flt):
         return next((d for d in self.docs if self._match(d, flt)), None)
+
+    async def distinct(self, key, flt):
+        return list({d.get(key) for d in self.docs if self._match(d, flt)})
+
+    async def delete_many(self, flt):
+        self.docs = [d for d in self.docs if not self._match(d, flt)]
 
     async def insert_one(self, doc):
         self.docs.append(dict(doc))
@@ -434,3 +443,28 @@ def test_parse_feed_keeps_exact_hosts_and_skips_trusted():
     hosts = threatfeeds.parse_feed(feed, trusted={"example.org"})
     assert hosts == {"abc-login.pages.dev", "vigya-29.github.io", "evil.example"}
     assert "pages.dev" not in hosts and "github.io" not in hosts
+
+
+# ---------------- Cộng đồng báo cáo ----------------
+def test_community_reports_need_distinct_people():
+    c, db = make_client()
+    body = {"url": "https://shady-shop.example/", "hostname": "shady-shop.example", "kind": "phishing"}
+    page_req = payload("https://shady-shop.example/", "shady-shop.example")
+    for _ in range(5):  # một người bấm 5 lần vẫn chỉ tính 1
+        c.post("/report", json=body, headers={"X-Forwarded-For": "198.51.100.1"})
+    assert c.post("/analyze", json=page_req).json()["verdict"] == "safe"
+    for ip in ("198.51.100.2", "198.51.100.3"):
+        c.post("/report", json=body, headers={"X-Forwarded-For": ip})
+    r = c.post("/analyze", json=page_req).json()  # cache đã bị xóa khi đủ 3 người
+    assert r["verdict"] == "suspicious"
+    assert any(s["layer"] == "community" and s["label"].startswith("3 người") for s in r["breakdown"])
+    assert all(len(d["reporter"]) == 16 and "198.51" not in d["reporter"] for d in db["reports"].docs)
+
+
+def test_community_reports_cannot_hurt_official_brand():
+    c, _ = make_client()
+    for ip in ("198.51.100.4", "198.51.100.5", "198.51.100.6"):
+        c.post("/report", json={"url": "https://www.paypal.com/", "hostname": "www.paypal.com", "kind": "phishing"},
+               headers={"X-Forwarded-For": ip})
+    r = c.post("/analyze", json=payload("https://www.paypal.com/", "www.paypal.com")).json()
+    assert r["verdict"] == "safe"
