@@ -19,4 +19,4 @@ services:
       - key: PHISHGUARD_GEMINI_API_KEY
         sync: false
       - key: PHISHGUARD_GEMINI_MODEL
-        value: gemini-flash-latest
+        value: gemini-flash-lite-latest

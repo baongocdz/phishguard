@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # KHÔNG ghi key vào code: đặt trong .env (local) hoặc biến môi trường (Render).
     gemini_api_key: str = ""
     # Thay bằng model ID chính xác lấy trong Google AI Studio.
-    gemini_model: str = "gemini-flash-latest"
+    gemini_model: str = "gemini-flash-lite-latest"
     gemini_timeout_seconds: float = 10.0
 
     # Origin được phép gọi API (CORS), phân tách bằng dấu phẩy. "*" = tất cả.
