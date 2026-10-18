@@ -35,32 +35,34 @@
     <div class="kpis" id="kpis"></div>
 
     <div class="charts">
-      <div class="card"><h3 style="margin-top:0">Lượt kiểm tra theo ngày</h3><canvas id="chart-days" height="120"></canvas></div>
-      <div class="card"><h3 style="margin-top:0">Nguồn kết luận</h3><canvas id="chart-source" height="180"></canvas></div>
+      <div class="card"><h3 style="margin-top:0">Lượt kiểm tra theo ngày</h3><div class="chart-box"><canvas id="chart-days"></canvas></div></div>
+      <div class="card"><h3 style="margin-top:0">Nguồn kết luận</h3><div class="chart-box"><canvas id="chart-source"></canvas></div></div>
     </div>
 
     <div class="charts" style="margin-top:12px">
       <div class="card"><h3 style="margin-top:0">Tên miền bị cảnh báo nhiều nhất</h3><div class="table-wrap"><table id="top-hosts"></table></div></div>
-      <div class="card"><h3 style="margin-top:0">Loại kiểm tra</h3><canvas id="chart-kind" height="180"></canvas></div>
+      <div class="card"><h3 style="margin-top:0">Loại kiểm tra</h3><div class="chart-box"><canvas id="chart-kind"></canvas></div></div>
     </div>
 
     <h2 class="section-title">Cảnh báo gần đây</h2>
-    <div class="card table-wrap"><table id="events"></table></div>
+    <div class="card"><div class="scroll"><table id="events" class="compact"></table></div></div>
 
     <h2 class="section-title">Báo cáo từ người dùng</h2>
-    <div class="card table-wrap"><table id="reports"></table></div>
+    <div class="card"><div class="scroll"><table id="reports" class="compact"></table></div></div>
 
     <h2 class="section-title">Danh sách đen / trắng</h2>
-    <div class="charts" style="grid-template-columns:1fr 1fr">
-      <div class="card">
-        <h3 style="margin-top:0">⛔ Danh sách đen</h3>
-        <div class="row"><input id="bl-input" placeholder="ten-mien-lua-dao.com"><button class="primary" data-add="blacklist">Thêm</button></div>
-        <div class="table-wrap"><table id="blacklist"></table></div>
+    <div class="lists">
+      <div class="card list-card">
+        <div class="list-head"><h3>⛔ Danh sách đen</h3><span class="badge" id="blacklist-count">0</span></div>
+        <div class="row add-row"><input id="bl-input" placeholder="Thêm: ten-mien-lua-dao.com"><button class="primary" data-add="blacklist">Thêm</button></div>
+        <input class="search" data-filter="blacklist" placeholder="🔍 Tìm trong danh sách đen…">
+        <div class="scroll short"><table id="blacklist" class="compact"></table></div>
       </div>
-      <div class="card">
-        <h3 style="margin-top:0">✅ Danh sách tin cậy</h3>
-        <div class="row"><input id="wl-input" placeholder="ten-mien-that.vn"><button class="primary" data-add="whitelist">Thêm</button></div>
-        <div class="table-wrap"><table id="whitelist"></table></div>
+      <div class="card list-card">
+        <div class="list-head"><h3>✅ Danh sách tin cậy</h3><span class="badge" id="whitelist-count">0</span></div>
+        <div class="row add-row"><input id="wl-input" placeholder="Thêm: ten-mien-that.vn"><button class="primary" data-add="whitelist">Thêm</button></div>
+        <input class="search" data-filter="whitelist" placeholder="🔍 Tìm trong danh sách tin cậy…">
+        <div class="scroll short"><table id="whitelist" class="compact"></table></div>
       </div>
     </div>
   </section>

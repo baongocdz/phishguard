@@ -4,7 +4,7 @@ const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa �
 const COLOR = { safe: "var(--safe)", suspicious: "var(--suspicious)", phishing: "var(--phishing)" };
 const SOURCE = {
   blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Kết quả đã lưu",
-  heuristic: "Bộ luật", gemini: "Bộ luật + AI Gemini", email: "Bộ luật email",
+  heuristic: "Bộ luật + học máy", gemini: "Bộ luật + AI Gemini", email: "Bộ luật email",
 };
 const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/gi;
 
@@ -195,6 +195,8 @@ async function runEmailCheck() {
   showResult(r, { label: "Email từ", value: req.sender || "(không rõ)" });
 }
 $("em-btn").addEventListener("click", (e) => withButton(e.target, runEmailCheck));
+// Link lấy từ email mẫu / file .eml chỉ dùng cho đúng email đó: người dùng tự sửa thì bỏ đi.
+["em-from", "em-subject", "em-body"].forEach((id) => $(id).addEventListener("input", () => { window.__emlLinks = []; }));
 $("em-sample").addEventListener("click", (e) => {
   e.preventDefault();
   window.__emlLinks = [{ text: "https://www.vietcombank.com.vn/xac-minh", href: "https://vcb-xacminh-taikhoan.top/login" }];

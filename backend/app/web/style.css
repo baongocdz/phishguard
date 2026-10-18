@@ -68,3 +68,21 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line
 th { color: var(--muted); font-weight: 600; }
 .section-title { margin: 24px 0 8px; font-size: 18px; }
 .table-wrap { overflow-x: auto; }
+
+/* bảng gọn + vùng cuộn để danh sách dài không kéo cả trang */
+.scroll { max-height: 420px; overflow: auto; }
+.scroll.short { max-height: 300px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.scroll thead th, .scroll tr:first-child th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+table.compact th, table.compact td { padding: 5px 8px; }
+table.compact td .ghost { padding: 2px 8px; font-size: 13px; }
+.lists { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 800px) { .lists { grid-template-columns: 1fr; } }
+.list-head { display: flex; align-items: center; gap: 8px; }
+.list-head h3 { margin: 0; }
+.badge { background: var(--line); color: var(--text); border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 600; }
+.add-row { margin-top: 8px; }
+.search { margin-top: 8px; padding: 7px 10px; }
+.tag { display: inline-block; font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+.icon-btn { border: none; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
+.icon-btn:hover { background: var(--line); color: var(--phishing); }
+.chart-box { position: relative; height: 240px; }

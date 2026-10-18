@@ -3,6 +3,11 @@ import { API_BASE } from "./config";
 import type { AnalysisResult, ExtMessage } from "./types";
 
 const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa đảo" } as const;
+const SOURCE: Record<string, string> = {
+  blacklist: "danh sách đen", whitelist: "danh sách tin cậy", cache: "kết quả đã lưu",
+  heuristic: "bộ luật + học máy", gemini: "bộ luật + AI Gemini", email: "bộ luật email",
+  local: "bộ luật trên máy (không kết nối được máy chủ)",
+};
 const $ = (id: string) => document.getElementById(id)!;
 
 function renderReasons(list: HTMLElement, reasons: string[]): void {
@@ -33,7 +38,7 @@ async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
   verdictEl.className = `chip ${result.verdict}`;
   verdictEl.textContent = `${LABEL[result.verdict]} · điểm ${result.score}`;
   renderReasons($("reasons"), result.reasons);
-  $("source").textContent = `Nguồn kết quả: ${result.source}`;
+  $("source").textContent = `Nguồn kết quả: ${SOURCE[result.source] ?? result.source}`;
 
   let url: URL;
   try {

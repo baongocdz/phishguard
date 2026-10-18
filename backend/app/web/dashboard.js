@@ -4,9 +4,14 @@ const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa �
 const KIND = { page: "Trang web (extension)", qr: "Mã QR", manual: "Link dán vào web", email: "Email / tin nhắn" };
 const SOURCE = {
   blacklist: "Danh sách đen", whitelist: "Danh sách tin cậy", cache: "Cache",
-  heuristic: "Bộ luật", gemini: "Luật + Gemini", email: "Luật email",
+  heuristic: "Luật + học máy", gemini: "Luật + Gemini", email: "Luật email",
 };
 const PALETTE = ["#2453d6", "#c62828", "#ef6c00", "#2e7d32", "#7b1fa2", "#00838f", "#6d4c41"];
+// Màu cố định cho từng loại để biểu đồ không đổi màu giữa các lần tải.
+const COLORS = {
+  blacklist: "#c62828", whitelist: "#2e7d32", cache: "#90a4ae", heuristic: "#2453d6", gemini: "#7b1fa2", email: "#00838f",
+  page: "#2453d6", qr: "#ef6c00", manual: "#6d4c41", email_kind: "#00838f",
+};
 const charts = {};
 
 function token() {
@@ -44,6 +49,8 @@ function table(id, head, rows, empty = "Chưa có dữ liệu.") {
 
 function drawChart(id, config) {
   charts[id]?.destroy();
+  // Biểu đồ lấp đầy khung .chart-box (cao cố định) để các ô đều nhau.
+  config.options = { responsive: true, maintainAspectRatio: false, animation: false, ...config.options };
   charts[id] = new Chart($(id), config);
 }
 
@@ -80,16 +87,16 @@ async function loadStats() {
     },
     options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } },
   });
-  const pie = (id, obj, names) => drawChart(id, {
+  const pie = (id, obj, names, colorKey = (k) => k) => drawChart(id, {
     type: "doughnut",
     data: {
       labels: Object.keys(obj).map((k) => names[k] || k),
-      datasets: [{ data: Object.values(obj), backgroundColor: PALETTE }],
+      datasets: [{ data: Object.values(obj), backgroundColor: Object.keys(obj).map((k, i) => COLORS[colorKey(k)] || PALETTE[i % PALETTE.length]) }],
     },
     options: { plugins: { legend: { position: "bottom" } } },
   });
   pie("chart-source", s.by_source, SOURCE);
-  pie("chart-kind", s.by_kind, KIND);
+  pie("chart-kind", s.by_kind, KIND, (k) => (k === "email" ? "email_kind" : k));
 
   table("top-hosts", ["Tên miền", "Số lần", "Mức", ""], s.top_hosts.map((h) => [
     el("span", { class: "mono" }, h.hostname), h.count, chip(h.verdict), quickBlock(h.hostname),
@@ -132,19 +139,32 @@ async function loadReports() {
   }), "Chưa có báo cáo nào.");
 }
 
+const LIST_SOURCE = { seed: "mẫu", sample: "mẫu", admin: "quản trị" };
+const listData = { blacklist: [], whitelist: [] };
+
+function renderList(name) {
+  const q = (document.querySelector(`[data-filter="${name}"]`)?.value || "").trim().toLowerCase();
+  const items = listData[name].filter((d) => d.domain.includes(q));
+  $(`${name}-count`).textContent = listData[name].length;
+  table(name, ["Tên miền", "Nguồn", ""], items.map((d) => {
+    const del = el("button", { class: "icon-btn", title: "Xóa khỏi danh sách" }, "✕");
+    del.addEventListener("click", async () => {
+      if (!confirm(`Xóa ${d.domain} khỏi danh sách?`)) return;
+      await api(`/admin/lists/${name}/${encodeURIComponent(d.domain)}`, { method: "DELETE" });
+      loadLists();
+    });
+    return [el("span", { class: "mono" }, d.domain), el("span", { class: "tag" }, LIST_SOURCE[d.source] || d.source || "mẫu"), del];
+  }), q ? "Không tìm thấy." : "Danh sách trống.");
+}
+
 async function loadLists() {
   for (const name of ["blacklist", "whitelist"]) {
-    const items = await api(`/admin/lists/${name}`);
-    table(name, ["Tên miền", "Nguồn", ""], items.map((d) => {
-      const del = el("button", { class: "ghost danger" }, "Xóa");
-      del.addEventListener("click", async () => {
-        await api(`/admin/lists/${name}/${encodeURIComponent(d.domain)}`, { method: "DELETE" });
-        loadLists();
-      });
-      return [el("span", { class: "mono" }, d.domain), d.source || "", del];
-    }));
+    listData[name] = await api(`/admin/lists/${name}`);
+    renderList(name);
   }
 }
+document.querySelectorAll("[data-filter]").forEach((input) =>
+  input.addEventListener("input", () => renderList(input.dataset.filter)));
 
 document.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("click", async () => {
   const name = btn.dataset.add;
@@ -157,6 +177,10 @@ document.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("c
   } catch (e) {
     alert("Tên miền không hợp lệ hoặc lỗi máy chủ.");
   }
+}));
+
+["bl-input", "wl-input"].forEach((id) => $(id).addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $(id).nextElementSibling.click();
 }));
 
 async function loadAll() {
