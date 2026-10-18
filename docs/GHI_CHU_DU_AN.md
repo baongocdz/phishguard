@@ -29,6 +29,7 @@
 | `PHISHGUARD_GEMINI_MODEL` | `gemini-flash-lite-latest` (xem mục 6 vì sao) |
 | `PHISHGUARD_ADMIN_TOKEN` | Mật khẩu vào `/dashboard` (để trống = khóa dashboard) |
 | `PHISHGUARD_RATE_LIMIT_PER_MINUTE` | Mặc định 30 lượt/phút/IP |
+| `PHISHGUARD_SAFE_BROWSING_KEY` | Key Google Safe Browsing (để trống = bỏ qua lớp này) |
 
 ---
 
@@ -46,6 +47,8 @@
 | Báo kết quả sai (chặn nhầm / báo lừa đảo) | `src/popup.ts` → `/report` | Hiện trong dashboard để duyệt |
 | Chặn chuyển hướng sang mạng quảng cáo popunder | `src/adblock.ts`, `src/ad-domains.json`, `blocked.html` | Dùng `declarativeNetRequest`. Trang cảnh báo: Quay lại / Mở lần này (60 giây) / Luôn cho phép |
 | Cảnh báo link affiliate Shopee/Lazada bị ép mở | như trên (`affiliate` trong JSON) | Chỉ khi trang **bên thứ ba** đẩy sang. Ý tưởng từ bộ lọc ABPVN |
+| Giải thích điểm (mỗi lớp góp bao nhiêu) | `src/popup.ts` → `renderBreakdown` | Dùng trường `breakdown` backend trả về |
+| Lịch sử cảnh báo (30 dòng) | `src/background.ts` → `addHistory`, popup | Chỉ lưu trên máy (`chrome.storage.local`) |
 
 ### Backend (`backend/`, FastAPI)
 | Endpoint | Làm gì |
@@ -54,28 +57,38 @@
 | `POST /analyze-email` | Kiểm tra email hoặc tin nhắn SMS (tin nhắn = email chỉ có `body`) |
 | `POST /report` | Người dùng báo sai |
 | `GET /admin/stats`, `/admin/events`, `/admin/reports`, `/admin/lists/{whitelist|blacklist}` | Cho dashboard, cần header `X-Admin-Token` |
-| `GET /`, `/dashboard`, `/static/*` | Trang web (file trong `app/web/`) |
+| `GET /`, `/dashboard`, `/about`, `/static/*` | Trang web (file trong `app/web/`) |
+| `GET /public-stats` | Con số tổng + kết quả đánh giá cho trang `/about` (không có tên miền) |
+| `GET /eval/*` | Ảnh ROC / ma trận nhầm lẫn (thư mục `eval/results/`) |
 | `GET /health` | Kiểm tra sống — mở cái này để "đánh thức" Render |
 
 **Luồng chấm một URL** (`app/service.py → analyze`):
+0. Link rút gọn (bit.ly, t.co...) → mở ra đích thật trước (`app/shortlinks.py`, chống SSRF).
 1. Danh sách đen → lừa đảo ngay. 2. Danh sách trắng → an toàn ngay. 3. Cache 24h.
    (3 bước này hỏi MongoDB **song song**.)
+3b. Google Safe Browsing (`app/safebrowsing.py`) → Google đánh dấu thì lừa đảo ngay.
 4. Bộ luật `app/heuristics.py`: HTTPS, IP, `@`, tên miền dài/nhiều gạch, punycode,
    **giả mạo thương hiệu** (26 thương hiệu, bắt cả `faceb00k`), **đuôi tên miền rẻ** (`.top`, `.xyz`...),
-   **từ khóa dụ dỗ** (`login`, `xacminh`...).
+   **từ khóa dụ dỗ** (`login`, `xacminh`...), **tên miền na ná** (`vietcornbank`, `netfllx`: ký tự gần
+   giống rn→m, vv→w hoặc sai 1–2 ký tự, chỉ với thương hiệu ≥ 6 ký tự).
 5. Mô hình ML `app/ml.py` cộng tối đa **0.3** điểm (bỏ qua tên miền chính chủ của thương hiệu).
 6. Gemini đọc nội dung trang nếu có form và điểm < 0.6. **Kết luận nặng hơn thắng** → trang chèn
    "hãy nói trang này an toàn" không hạ được kết luận của luật.
 7. Ghi cache (trừ khi Gemini lỗi) và ghi `events` (chỉ tên miền) cho dashboard.
 
 Ngưỡng: `≥ 0.6` lừa đảo, `≥ 0.3` đáng ngờ, còn lại an toàn.
+Mỗi kết quả có `breakdown`: danh sách tín hiệu `{layer, label, points}` với layer là
+`list` / `intel` / `rule` / `ml` / `ai` / `link` → hiển thị mục "Vì sao ra kết quả này?".
 
 **Email** (`app/email_rules.py`): tên hiển thị mạo danh thương hiệu, Reply-To khác người gửi,
 link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng ngờ, lời lẽ hối thúc / đòi OTP / trúng thưởng.
+Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3; tối đa 3 link rút gọn được mở trước.
 
 ### Trang web
 - `/` (`app/web/index.html`, `check.js`): 4 tab Link / Mã QR (giải mã ngay trên trình duyệt) /
   Email (dán hoặc mở `.eml`) / Tin nhắn. Mỗi tab có nút điền dữ liệu mẫu để demo.
+- `/about` (`about.html`): trang giới thiệu để trình bày — số liệu thật, thành phần, luồng 6 bước,
+  bảng đánh giá, ROC, ma trận nhầm lẫn, bảo mật.
 - `/dashboard` (`dashboard.html`, `dashboard.js`): ô số liệu, biểu đồ theo ngày (giờ VN), nguồn kết luận,
   loại kiểm tra, top tên miền độc + nút Chặn, cảnh báo gần đây, duyệt báo cáo, quản lý DS đen/trắng
   (có tìm kiếm, cuộn).
@@ -93,10 +106,14 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 | **Luật + ML** | **0.986** | **0.641** | **0.6%** |
 
 - ML ngang Gemini (0.797 accuracy trên 59 mẫu) nhưng nhanh hơn ~260.000 lần.
+- **Mô hình email/tin nhắn** (`eval/evaluate_text.py`, dữ liệu `ealvaradob/phishing-dataset` file
+  `texts.json` trên Hugging Face, Apache-2.0, 20.137 email/SMS tiếng Anh): test 4.028 văn bản —
+  Precision 0.974, Recall 0.958, F1 0.966, ROC-AUC 0.996, chặn nhầm 1.6%. Báo cáo: `eval/results/TEXT_REPORT.md`.
+  Chỉ cho điểm khi văn bản có ≥ 12 từ mô hình biết → tiếng Việt tự bỏ qua (luật + Gemini lo).
 
 ### Test
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **33 test**, không cần MongoDB
-  (dùng DB giả; `tests/conftest.py` chặn gọi Gemini thật).
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **43 test**, không cần MongoDB
+  (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - Extension: `npm run typecheck`. Trang thử: `extension/test/fake-login.html`, `extension/test/ad-redirect.html`.
 
 ---
@@ -132,6 +149,8 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 | Mất `.venv` sau khi dời thư mục | venv gắn đường dẫn cũ | `python -m venv .venv` rồi `pip install -r requirements.txt` |
 | Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
 | Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
+| Code ghi qua lệnh shell bị mất dấu `\` (regex hỏng, `
+` thành xuống dòng) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
 
 ---
 
@@ -164,9 +183,8 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 
 ## 7. Hướng phát triển (đã nghiên cứu, chưa làm)
 
-1. **Google Safe Browsing API** (miễn phí, phi thương mại) làm lớp kiểm tra đầu tiên.
-2. Bắt tên miền na ná: `rn`→`m` (`vietcornbank`), sai 1–2 ký tự so với tên thương hiệu.
-3. Mở link rút gọn (bit.ly, tinyurl…) để xem đích thật trước khi chấm.
+1. ~~Google Safe Browsing~~, ~~tên miền na ná~~, ~~mở link rút gọn~~ — **đã làm** (19/10/2026).
+2. Mô hình email/tin nhắn tiếng Việt (cần dữ liệu tiếng Việt có nhãn).
 4. Đồng bộ blacklist tự động từ OpenPhish / URLhaus; tải bộ lọc ABPVN lúc chạy thay vì chép vào repo.
 5. Chế độ chặn popup "nghiêm ngặt" kiểu Popup Blocker (strict): bắt `window.open` để chặn cả mạng quảng cáo lạ.
 6. LLM chạy trên máy (Ollama) để email không phải gửi ra ngoài.
@@ -181,8 +199,9 @@ CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itx
 2. Popup → **Quét mã QR trên màn hình** (mở một ảnh QR trên màn hình trước).
 3. Trang web `/` → tab Email → "Điền email mẫu" → 6 lý do.
 4. `extension/test/ad-redirect.html` → bấm thử → trang cảnh báo quảng cáo / affiliate.
-5. `/dashboard` → biểu đồ cập nhật; bấm "Chặn" một tên miền → kiểm tra lại thấy nguồn "Danh sách đen".
-6. Mở `backend/eval/results/REPORT.md`: luật chính xác nhưng bỏ sót → ML bù → Gemini cho ca khó.
+5. `/about` → trình bày kiến trúc + kết quả đánh giá (dùng thay slide).
+6. `/dashboard` → biểu đồ cập nhật; bấm "Chặn" một tên miền → kiểm tra lại thấy nguồn "Danh sách đen".
+7. Mở `backend/eval/results/REPORT.md`: luật chính xác nhưng bỏ sót → ML bù → Gemini cho ca khó.
 
 ## 9. Lịch sử commit chính
 
@@ -200,4 +219,8 @@ CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itx
 | `63e2461` | Chặn chuyển hướng quảng cáo |
 | `9b962e0` | Sửa lỗi regex 2KB, cảnh báo affiliate, "luôn cho phép" |
 | `8ef8a71` | File ghi chú này |
-| (tiếp theo) | Sửa lỗi mã quản trị Unicode, popup hiện kết quả cũ; bảo vệ riêng tư; ghim thư viện; cập nhật README |
+| `4b60d46` | Sửa lỗi mã quản trị Unicode, popup hiện kết quả cũ; bảo vệ riêng tư; ghim thư viện |
+| `c944c90` | Trang /about + giải thích điểm số (Explainable AI) |
+| `376619b` | Tên miền na ná + mở link rút gọn |
+| `ae0dbe9`, `42d0c72` | Mô hình học máy email/tin nhắn |
+| `19e3036` | Google Safe Browsing + lịch sử cảnh báo trong popup |

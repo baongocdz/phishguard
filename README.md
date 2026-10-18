@@ -9,7 +9,8 @@ Hệ thống phát hiện lừa đảo trực tuyến: **trang web giả mạo (
 | **Backend API** ([`backend/`](backend/)) | FastAPI + MongoDB Atlas + Gemini, deploy trên Render |
 | **Trang web kiểm tra** (`/`) | Kiểm tra link, ảnh mã QR, email (dán hoặc mở file `.eml`), tin nhắn — không cần cài extension |
 | **Dashboard quản trị** (`/dashboard`) | Biểu đồ thống kê, cảnh báo gần đây, duyệt báo cáo người dùng, quản lý danh sách đen/trắng |
-| **Đánh giá + ML** ([`backend/eval/`](backend/eval/)) | Đo Precision/Recall/F1 trên 219 nghìn tên miền, huấn luyện mô hình học máy dùng trong backend |
+| **Đánh giá + ML** ([`backend/eval/`](backend/eval/)) | 2 mô hình tự huấn luyện: tên miền (219 nghìn tên miền, AUC 0.914) và email/tin nhắn (20 nghìn văn bản, F1 0.966) |
+| **Trang giới thiệu** (`/about`) | Kiến trúc, luồng phát hiện, kết quả đánh giá — dùng để trình bày |
 
 Bản chạy thật: https://phishguard-backend-g3w0.onrender.com (trang kiểm tra) ·
 [/dashboard](https://phishguard-backend-g3w0.onrender.com/dashboard) · [/docs](https://phishguard-backend-g3w0.onrender.com/docs) (tài liệu API)
