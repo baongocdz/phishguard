@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishGuard – Kiểm tra lừa đảo</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🛡️ PhishGuard</div>
+  <nav><a href="/" class="active">Kiểm tra</a><a href="/dashboard">Quản trị</a><a href="/docs">API</a></nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Kiểm tra link, mã QR, email và tin nhắn lừa đảo</h1>
+    <p>Kết hợp danh sách đen/trắng, bộ luật nhận diện giả mạo thương hiệu và AI (Gemini) để phát hiện phishing, quishing và email/SMS lừa đảo.</p>
+  </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="url">🔗 Link</button>
+    <button class="tab" data-tab="qr">▦ Mã QR</button>
+    <button class="tab" data-tab="email">✉️ Email</button>
+    <button class="tab" data-tab="sms">💬 Tin nhắn</button>
+  </div>
+
+  <section class="panel" id="tab-url">
+    <label for="url-input">Dán đường link cần kiểm tra</label>
+    <div class="row">
+      <input id="url-input" placeholder="https://vi-du.com/dang-nhap" autocomplete="off">
+      <button class="primary" id="url-btn">Kiểm tra</button>
+    </div>
+    <p class="hint">Thử: <a href="#" class="sample" data-url="https://secure-vietcombank-xacminh.top/login">secure-vietcombank-xacminh.top</a> · <a href="#" class="sample" data-url="https://faceb00k-security-check.com/recover">faceb00k-security-check.com</a> · <a href="#" class="sample" data-url="https://github.com/login">github.com</a></p>
+  </section>
+
+  <section class="panel hidden" id="tab-qr">
+    <label>Tải lên ảnh có mã QR (ảnh chụp hoặc ảnh chụp màn hình)</label>
+    <div class="drop" id="qr-drop">
+      <input type="file" id="qr-file" accept="image/*">
+      <p>Kéo thả ảnh vào đây, bấm để chọn, hoặc <b>Ctrl+V</b> để dán ảnh</p>
+    </div>
+    <canvas id="qr-canvas" class="hidden"></canvas>
+    <p class="hint">Quishing = lừa đảo bằng mã QR: mã dán ở bãi xe, hóa đơn, email… dẫn tới trang giả mạo. Ảnh được giải mã ngay trên trình duyệt, không tải lên máy chủ.</p>
+  </section>
+
+  <section class="panel hidden" id="tab-email">
+    <div class="grid2">
+      <div><label for="em-from">Người gửi</label><input id="em-from" placeholder="Vietcombank &lt;no-reply@vcb-thongbao.com&gt;"></div>
+      <div><label for="em-reply">Reply-To (nếu có)</label><input id="em-reply" placeholder="(không bắt buộc)"></div>
+    </div>
+    <label for="em-subject">Tiêu đề</label><input id="em-subject">
+    <label for="em-body">Nội dung (có thể dán cả link)</label>
+    <textarea id="em-body" rows="8"></textarea>
+    <div class="row">
+      <button class="primary" id="em-btn">Phân tích email</button>
+      <label class="file-btn">Mở file .eml<input type="file" id="em-file" accept=".eml,message/rfc822"></label>
+      <a href="#" id="em-sample">Điền email mẫu</a>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="tab-sms">
+    <label for="sms-body">Dán tin nhắn SMS / Zalo / Messenger</label>
+    <textarea id="sms-body" rows="6" placeholder="VD: [VCB] Tai khoan cua quy khach bi tam khoa. Truy cap https://... de xac minh"></textarea>
+    <div class="row"><button class="primary" id="sms-btn">Kiểm tra tin nhắn</button><a href="#" id="sms-sample">Điền tin mẫu</a></div>
+  </section>
+
+  <section id="result" class="result hidden" aria-live="polite"></section>
+</main>
+
+<footer class="foot">PhishGuard · Đồ án phát hiện lừa đảo trực tuyến · Có kèm Chrome extension</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="/static/check.js"></script>
+</body>
+</html>

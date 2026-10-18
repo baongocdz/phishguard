@@ -20,3 +20,7 @@ services:
         sync: false
       - key: PHISHGUARD_GEMINI_MODEL
         value: gemini-flash-lite-latest
+      # Mã đăng nhập trang /dashboard. Render tự sinh chuỗi ngẫu nhiên;
+      # xem giá trị ở tab Environment của service.
+      - key: PHISHGUARD_ADMIN_TOKEN
+        generateValue: true

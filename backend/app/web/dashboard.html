@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishGuard – Quản trị</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🛡️ PhishGuard · Quản trị</div>
+  <nav><a href="/">Kiểm tra</a><a href="/dashboard" class="active">Quản trị</a><a href="/docs">API</a></nav>
+</header>
+
+<main class="wrap" style="max-width:1200px">
+  <section id="login" class="card hidden">
+    <h2 style="margin-top:0">Đăng nhập quản trị</h2>
+    <p class="muted">Nhập mã quản trị (biến môi trường <code>PHISHGUARD_ADMIN_TOKEN</code> trên Render).</p>
+    <div class="row"><input id="token" type="password" placeholder="Mã quản trị"><button class="primary" id="login-btn">Vào</button></div>
+    <p id="login-err" class="danger"></p>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="row" style="justify-content:space-between">
+      <h1 style="margin:0;font-size:24px">Tổng quan</h1>
+      <div class="row" style="margin:0">
+        <select id="days" style="width:auto">
+          <option value="1">24 giờ</option><option value="7" selected>7 ngày</option><option value="30">30 ngày</option><option value="90">90 ngày</option>
+        </select>
+        <button class="ghost" id="refresh">↻ Làm mới</button>
+        <button class="ghost" id="logout">Đăng xuất</button>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="charts">
+      <div class="card"><h3 style="margin-top:0">Lượt kiểm tra theo ngày</h3><canvas id="chart-days" height="120"></canvas></div>
+      <div class="card"><h3 style="margin-top:0">Nguồn kết luận</h3><canvas id="chart-source" height="180"></canvas></div>
+    </div>
+
+    <div class="charts" style="margin-top:12px">
+      <div class="card"><h3 style="margin-top:0">Tên miền bị cảnh báo nhiều nhất</h3><div class="table-wrap"><table id="top-hosts"></table></div></div>
+      <div class="card"><h3 style="margin-top:0">Loại kiểm tra</h3><canvas id="chart-kind" height="180"></canvas></div>
+    </div>
+
+    <h2 class="section-title">Cảnh báo gần đây</h2>
+    <div class="card table-wrap"><table id="events"></table></div>
+
+    <h2 class="section-title">Báo cáo từ người dùng</h2>
+    <div class="card table-wrap"><table id="reports"></table></div>
+
+    <h2 class="section-title">Danh sách đen / trắng</h2>
+    <div class="charts" style="grid-template-columns:1fr 1fr">
+      <div class="card">
+        <h3 style="margin-top:0">⛔ Danh sách đen</h3>
+        <div class="row"><input id="bl-input" placeholder="ten-mien-lua-dao.com"><button class="primary" data-add="blacklist">Thêm</button></div>
+        <div class="table-wrap"><table id="blacklist"></table></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">✅ Danh sách tin cậy</h3>
+        <div class="row"><input id="wl-input" placeholder="ten-mien-that.vn"><button class="primary" data-add="whitelist">Thêm</button></div>
+        <div class="table-wrap"><table id="whitelist"></table></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

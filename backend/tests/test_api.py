@@ -21,6 +21,9 @@ class FakeCollection:
     async def find_one(self, flt):
         return next((d for d in self.docs if self._match(d, flt)), None)
 
+    async def insert_one(self, doc):
+        self.docs.append(dict(doc))
+
     async def update_one(self, flt, update, upsert=False):
         doc = await self.find_one(flt)
         if doc is None and upsert:
@@ -218,3 +221,42 @@ def test_rate_limit_returns_429(monkeypatch):
     # IP khác vẫn gọi được
     other = c.post("/analyze", json=body, headers={"X-Forwarded-For": "198.51.100.1"})
     assert other.status_code == 200
+
+
+# ---------------- Email / tin nhắn ----------------
+from app.email_rules import run_email_rules
+from app.schemas import EmailLink, EmailRequest
+
+
+def test_email_spoofed_bank_is_phishing():
+    r = run_email_rules(EmailRequest(
+        sender="Vietcombank <thongbao@vcb-canhbao.com>", reply_to="hotro.vcb@gmail.com",
+        subject="[KHẨN] Tài khoản sẽ bị tạm khóa", body="Nhập mật khẩu và mã OTP để xác minh.",
+        links=[EmailLink(text="https://www.vietcombank.com.vn/xac-minh", href="https://vcb-xacminh.top/login")],
+    ))
+    assert r.verdict == "phishing"
+    assert any("vcb-xacminh.top" in x for x in r.reasons)
+
+
+def test_email_from_real_domain_is_safe():
+    r = run_email_rules(EmailRequest(
+        sender="Shopee <info@mail.shopee.vn>", subject="Đơn hàng đã giao",
+        body="Xem chi tiết đơn hàng.", links=[EmailLink(text="Xem đơn", href="https://shopee.vn/user/purchase")],
+    ))
+    assert r.verdict == "safe"
+
+
+def test_email_endpoint_and_report():
+    c, db = make_client()
+    r = c.post("/analyze-email", json={"body": "Tai khoan bi khoa, nhap OTP tai https://vietcombank-xacminh.click",
+                                       "links": [{"text": "x", "href": "https://vietcombank-xacminh.click"}]})
+    assert r.status_code == 200 and r.json()["verdict"] == "phishing"
+    assert c.post("/report", json={"url": "https://a.com/", "hostname": "a.com", "kind": "phishing"}).json() == {"ok": True}
+
+
+def test_admin_requires_token(monkeypatch):
+    c, _ = make_client()
+    monkeypatch.setattr(settings, "admin_token", "")
+    assert c.get("/admin/events", headers={"X-Admin-Token": ""}).status_code == 401
+    monkeypatch.setattr(settings, "admin_token", "s3cret")
+    assert c.get("/admin/events", headers={"X-Admin-Token": "wrong"}).status_code == 401

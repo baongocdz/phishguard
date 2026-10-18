@@ -22,5 +22,8 @@ class Settings(BaseSettings):
     # Số lần gọi /analyze tối đa mỗi phút cho một IP. 0 = không giới hạn.
     rate_limit_per_minute: int = 30
 
+    # Mã đăng nhập trang quản trị /dashboard. Để trống = khóa trang quản trị.
+    admin_token: str = ""
+
 
 settings = Settings()

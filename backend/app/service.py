@@ -1,12 +1,17 @@
 import asyncio
+import hashlib
+import logging
 from datetime import datetime, timezone
 
 from . import gemini_client
 from .config import settings
 from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
+from .email_rules import _domain_of, run_email_rules
 from .heuristics import run_heuristics
-from .schemas import AnalyzeRequest, AnalyzeResponse
+from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
+
+log = logging.getLogger("phishguard.service")
 
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 
@@ -99,3 +104,65 @@ async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
             upsert=True,
         )
     return result
+
+
+async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
+    """Luồng email: cache -> luật email -> (Gemini) -> ghi cache."""
+    key = "email:" + hashlib.sha256(
+        f"{req.sender}\n{req.subject}\n{req.body}".encode()
+    ).hexdigest()
+    cached = await db["cache"].find_one({"key": key})
+    if cached:
+        result = AnalyzeResponse(**cached["result"])
+        result.source = "cache"
+        return result
+
+    result = run_email_rules(req)
+    gemini_failed = False
+    # Email do người dùng chủ động mở/dán nên hỏi Gemini khi luật chưa chắc chắn.
+    if settings.gemini_api_key and result.score < 0.6:
+        g = await gemini_client.classify_email(req)
+        if g is None:
+            gemini_failed = True
+        else:
+            result = merge(result, g)
+
+    if not gemini_failed:
+        await db["cache"].update_one(
+            {"key": key},
+            {"$set": {"key": key, "hostname": "", "result": result.model_dump(),
+                      "created_at": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+    return result
+
+
+async def record_event(db, kind: str, hostname: str, result: AnalyzeResponse) -> None:
+    """Lưu lịch sử để dashboard thống kê. Chỉ lưu tên miền, không lưu URL đầy đủ
+    hay nội dung email (có thể chứa thông tin cá nhân). Lỗi ghi log không được
+    làm hỏng phản hồi cho người dùng."""
+    try:
+        await db["events"].insert_one({
+            "kind": kind,
+            "hostname": hostname,
+            "verdict": result.verdict,
+            "source": result.source,
+            "score": result.score,
+            "at": datetime.now(timezone.utc),
+        })
+    except Exception as e:
+        log.warning("Không ghi được event: %s", e)
+
+
+def sender_domain(req: EmailRequest) -> str:
+    return _domain_of(req.sender)
+
+
+async def save_report(db, req: ReportRequest) -> None:
+    await db["reports"].insert_one({
+        "url": req.url[:2048],
+        "hostname": req.hostname.lower(),
+        "kind": req.kind,
+        "note": req.note,
+        "at": datetime.now(timezone.utc),
+    })

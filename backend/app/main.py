@@ -1,13 +1,19 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pymongo import ASCENDING, AsyncMongoClient
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 
-from . import service
+from . import admin, service
 from .config import settings
+from .deps import get_db
 from .rate_limit import limit_by_ip
-from .schemas import AnalyzeRequest, AnalyzeResponse
+from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
+
+WEB_DIR = Path(__file__).parent / "web"
 
 
 @asynccontextmanager
@@ -21,24 +27,25 @@ async def lifespan(app: FastAPI):
     await db["cache"].create_index(
         [("created_at", ASCENDING)], expireAfterSeconds=settings.cache_ttl_seconds
     )
+    # Lịch sử kiểm tra cho dashboard, tự xóa sau 90 ngày.
+    await db["events"].create_index([("at", DESCENDING)], expireAfterSeconds=90 * 24 * 3600)
+    await db["reports"].create_index([("at", DESCENDING)])
     app.state.db = db
     yield
     await client.close()
 
 
-app = FastAPI(title="PhishGuard API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="PhishGuard API", version="0.2.0", lifespan=lifespan)
 
 # Extension gửi JSON nên trình duyệt sẽ preflight (OPTIONS) trước khi POST.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Admin-Token"],
 )
-
-
-def get_db(request: Request):
-    return request.app.state.db
+app.include_router(admin.router)
+app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
 @app.get("/health")
@@ -48,4 +55,30 @@ async def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(limit_by_ip)])
 async def analyze(req: AnalyzeRequest, db=Depends(get_db)):
-    return await service.analyze(db, req)
+    result = await service.analyze(db, req)
+    await service.record_event(db, req.kind, req.hostname.lower(), result)
+    return result
+
+
+@app.post("/analyze-email", response_model=AnalyzeResponse, dependencies=[Depends(limit_by_ip)])
+async def analyze_email(req: EmailRequest, db=Depends(get_db)):
+    result = await service.analyze_email(db, req)
+    await service.record_event(db, "email", service.sender_domain(req), result)
+    return result
+
+
+@app.post("/report", dependencies=[Depends(limit_by_ip)])
+async def report(req: ReportRequest, db=Depends(get_db)):
+    await service.save_report(db, req)
+    return {"ok": True}
+
+
+# Trang web: kiểm tra URL / QR / email cho mọi người, và dashboard quản trị.
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard():
+    return FileResponse(WEB_DIR / "dashboard.html")
