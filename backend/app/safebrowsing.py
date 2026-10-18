@@ -23,7 +23,7 @@ THREAT_LABEL = {
 
 async def check(url: str) -> str | None:
     """Trả về loại mối đe dọa (vd 'SOCIAL_ENGINEERING') nếu Google đánh dấu URL, ngược lại None."""
-    if not settings.safe_browsing_api_key:
+    if not settings.safe_browsing_key:
         return None
     body = {
         "client": {"clientId": "phishguard", "clientVersion": "0.3.0"},
@@ -36,7 +36,7 @@ async def check(url: str) -> str | None:
     }
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.post(ENDPOINT, params={"key": settings.safe_browsing_api_key}, json=body)
+            resp = await client.post(ENDPOINT, params={"key": settings.safe_browsing_key}, json=body)
             resp.raise_for_status()
             matches = resp.json().get("matches") or []
             return matches[0]["threatType"] if matches else None

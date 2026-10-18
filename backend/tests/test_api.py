@@ -362,5 +362,17 @@ def test_safe_browsing_match_wins(monkeypatch):
 
 def test_safe_browsing_skipped_without_key(monkeypatch):
     import asyncio
-    monkeypatch.setattr(settings, "safe_browsing_api_key", "")
+    monkeypatch.setattr(settings, "safe_browsing_key", "")
     assert asyncio.run(safebrowsing.check("https://example.com/")) is None
+
+
+def test_env_var_names_match_settings():
+    """Tên biến trong render.yaml / .env.example phải khớp với Settings (từng lệch tên)."""
+    import re
+    from pathlib import Path
+    from app.config import Settings
+    root = Path(__file__).resolve().parents[1]
+    names = set(re.findall(r"PHISHGUARD_[A-Z_]+", (root.parent / "render.yaml").read_text(encoding="utf-8")))
+    names |= set(re.findall(r"^(PHISHGUARD_[A-Z_]+)=", (root / ".env.example").read_text(encoding="utf-8"), re.M))
+    fields = {f"PHISHGUARD_{f.upper()}" for f in Settings.model_fields}
+    assert names <= fields, names - fields

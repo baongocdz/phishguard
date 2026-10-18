@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 30
 
     # Google Safe Browsing (Lookup API v4). Để trống = bỏ qua lớp này.
-    safe_browsing_api_key: str = ""
+    safe_browsing_key: str = ""
 
     # Mã đăng nhập trang quản trị /dashboard. Để trống = khóa trang quản trị.
     admin_token: str = ""
