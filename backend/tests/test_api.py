@@ -282,3 +282,16 @@ def test_ml_skips_official_brand_domain():
 
 def test_ml_bonus_is_capped():
     assert ml.combine(0.0, 0.99) == 0.3 and ml.combine(0.5, 0.75) == 0.65 and ml.combine(0.2, None) == 0.2
+
+
+def test_admin_token_with_unicode_does_not_crash(monkeypatch):
+    monkeypatch.setattr(settings, "admin_token", "s3cret")
+    c, _ = make_client()
+    r = c.get("/admin/events", headers={"X-Admin-Token": "mật-khẩu".encode("utf-8")})
+    assert r.status_code == 401
+
+
+def test_safe_page_visit_is_not_logged_with_hostname():
+    c, db = make_client()
+    c.post("/analyze", json=payload("https://example.org/", "example.org"))
+    assert db["events"].docs and db["events"].docs[-1]["hostname"] == ""

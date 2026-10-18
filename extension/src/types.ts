@@ -27,6 +27,7 @@ export interface AnalysisResult {
   score: number; // 0..1
   reasons: string[];
   source: string;
+  url?: string; // trang được chấm (extension tự gắn để popup so với tab hiện tại)
 }
 
 export interface ReportInfo {

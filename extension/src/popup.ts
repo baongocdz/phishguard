@@ -29,7 +29,9 @@ async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
     ? await chrome.runtime.sendMessage({ type: "GET_RESULT", tabId: tab.id } satisfies ExtMessage)
     : null;
 
-  if (!result) {
+  // Kết quả cũ của trang trước (vd đã chuyển sang trang chrome://) thì bỏ qua.
+  const sameUrl = (a?: string, b?: string) => !!a && !!b && a.split("#")[0] === b.split("#")[0];
+  if (!result || !sameUrl(result.url, tab?.url)) {
     verdictEl.className = "chip none";
     verdictEl.textContent = "Chưa có dữ liệu (thử tải lại trang)";
     return;

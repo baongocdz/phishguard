@@ -1,30 +1,46 @@
-# PhishGuard Backend (Tuần 5)
+# PhishGuard Backend
 
-## Chạy
-1. Bật MongoDB: `docker compose up -d`
-2. `python -m venv .venv && source .venv/bin/activate` (Windows: `.venv\Scripts\activate`)
-3. `pip install -r requirements.txt`
-4. Nạp dữ liệu mẫu: `python -m scripts.seed`
-5. Chạy API: `uvicorn app.main:app --reload --port 8000`
-6. Xem tài liệu API tại http://localhost:8000/docs
-7. Test (không cần MongoDB): `pytest -q`
+FastAPI + MongoDB (Atlas) + Gemini. Phục vụ API cho extension, trang web kiểm tra (`/`)
+và dashboard quản trị (`/dashboard`).
 
-## Deploy online (Render + MongoDB Atlas, miễn phí)
-1. **MongoDB Atlas** (https://cloud.mongodb.com): tạo cluster **M0 Free** →
-   Database Access: tạo user/mật khẩu → Network Access: thêm `0.0.0.0/0` →
-   Connect → Drivers: copy chuỗi `mongodb+srv://...`.
-2. Nạp dữ liệu mẫu lên Atlas (chạy ở máy, PowerShell):
-   `$env:PHISHGUARD_MONGO_URI="mongodb+srv://..."; python -m scripts.seed`
-3. Đẩy repo `phishguard` (thư mục cha) lên GitHub (file `.env` đã nằm trong `.gitignore`).
-4. **Render** (https://render.com): New → **Blueprint** → chọn repo. Render đọc
-   `render.yaml` và hỏi 2 biến: `PHISHGUARD_MONGO_URI`, `PHISHGUARD_GEMINI_API_KEY`.
-5. Deploy xong, mở `https://<tên-service>.onrender.com/health` phải thấy `{"status":"ok"}`.
-6. Sửa `API_BASE` trong `extension/src/config.ts` thành URL trên, `npm run build`,
-   Reload extension.
+## Chạy ở máy
+1. `python -m venv .venv` rồi `.venv\Scripts\activate` (macOS/Linux: `source .venv/bin/activate`)
+2. `pip install -r requirements.txt`
+3. Sao chép `.env.example` thành `.env` và điền:
+   - `PHISHGUARD_MONGO_URI`: chuỗi `mongodb+srv://...` của Atlas
+     (hoặc chạy Mongo trên máy bằng `docker compose up -d` và để mặc định `mongodb://localhost:27017`)
+   - `PHISHGUARD_GEMINI_API_KEY`: để trống thì chỉ dùng luật + ML
+   - `PHISHGUARD_ADMIN_TOKEN`: mật khẩu vào `/dashboard`
+4. Nạp whitelist/blacklist mẫu: `python -m scripts.seed`
+5. Chạy: `uvicorn app.main:app --reload --port 8000` → mở http://localhost:8000 (trang kiểm tra),
+   http://localhost:8000/dashboard, http://localhost:8000/docs (tài liệu API)
+6. Test (không cần MongoDB, không gọi Gemini thật): `pytest -q`
 
-Gói free của Render ngủ sau ~15 phút không có request. Muốn luôn thức, dùng
-https://cron-job.org gọi `/health` mỗi 10 phút.
+## Cấu trúc
+| File | Vai trò |
+|---|---|
+| `app/main.py` | Khai báo route, CORS, index MongoDB |
+| `app/service.py` | Luồng chấm URL và email, ghi cache/lịch sử/báo cáo |
+| `app/heuristics.py` | Bộ luật cho URL (giữ đồng bộ với `extension/src/analyzer.ts`) |
+| `app/ml.py`, `app/ml_model.json` | Mô hình học máy (n-gram ký tự), chạy bằng Python thuần |
+| `app/email_rules.py` | Bộ luật cho email/tin nhắn |
+| `app/gemini_client.py` | Gọi Gemini, prompt chống prompt injection |
+| `app/admin.py` | API cho dashboard (cần header `X-Admin-Token`) |
+| `app/rate_limit.py` | Giới hạn lượt gọi mỗi IP |
+| `app/web/` | Trang kiểm tra và dashboard (HTML/JS thuần) |
+| `eval/evaluate.py` | Đánh giá trên PhiUSIIL và huấn luyện lại mô hình ML |
 
 ## Luồng xử lý POST /analyze
-blacklist -> whitelist -> cache (TTL 24h) -> heuristic -> ghi cache
-(Tuần 6 sẽ thêm bước gọi Gemini sau heuristic.)
+blacklist → whitelist → cache 24h (3 bước hỏi song song) → bộ luật → điểm cộng ML
+→ Gemini (nếu trang có form và điểm < 0.6) → ghi cache + lịch sử.
+
+## Deploy (Render + MongoDB Atlas, miễn phí)
+1. Atlas: cluster M0, tạo database user, Network Access thêm `0.0.0.0/0`, lấy chuỗi kết nối.
+2. Nạp dữ liệu mẫu lên Atlas từ máy: đặt `PHISHGUARD_MONGO_URI` trong `.env` rồi `python -m scripts.seed`.
+3. Render → New → **Blueprint** → chọn repo (đọc `render.yaml` ở thư mục gốc, `rootDir: backend`).
+   Nhập `PHISHGUARD_MONGO_URI`, `PHISHGUARD_GEMINI_API_KEY`, `PHISHGUARD_ADMIN_TOKEN`.
+4. Settings → **Auto-Deploy: On Commit** để mỗi lần push là tự deploy.
+5. Kiểm tra `https://<service>.onrender.com/health` → `{"status":"ok"}`.
+
+Gói free ngủ sau ~15 phút không có request (lần gọi đầu mất 30–50 giây). Muốn luôn thức:
+dùng https://cron-job.org gọi `/health` mỗi 10 phút.

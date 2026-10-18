@@ -162,6 +162,8 @@ async def record_event(db, kind: str, hostname: str, result: AnalyzeResponse) ->
     """Lưu lịch sử để dashboard thống kê. Chỉ lưu tên miền, không lưu URL đầy đủ
     hay nội dung email (có thể chứa thông tin cá nhân). Lỗi ghi log không được
     làm hỏng phản hồi cho người dùng."""
+    if kind == "page" and result.verdict == "safe":
+        hostname = ""  # trang an toàn người dùng tự mở: chỉ đếm, không lưu là trang nào
     try:
         await db["events"].insert_one({
             "kind": kind,

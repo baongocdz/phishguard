@@ -5,7 +5,7 @@ import type { AnalysisResult, ExtMessage, PageInfo } from "./types";
 const resultKey = (tabId: number) => `result:${tabId}`;
 
 async function handlePageInfo(tabId: number, info: PageInfo): Promise<void> {
-  const result = await analyze(info);
+  const result = { ...(await analyze(info)), url: info.url };
   await chrome.storage.session.set({ [resultKey(tabId)]: result });
 
   const flagged = result.verdict !== "safe";

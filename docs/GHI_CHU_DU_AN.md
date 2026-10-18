@@ -1,7 +1,7 @@
 # Ghi chú dự án PhishGuard
 
 > File này để tự xem lại: đã làm gì, cấu hình ở đâu, cái gì hay hỏng và vì sao lại làm như vậy.
-> Cập nhật lần cuối: 19/10/2026 (commit `9b962e0`).
+> Cập nhật lần cuối: 19/10/2026.
 > **Không ghi mật khẩu / API key vào file này** — chúng nằm ở chỗ ghi trong mục 1.
 
 ---
@@ -95,7 +95,7 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 - ML ngang Gemini (0.797 accuracy trên 59 mẫu) nhưng nhanh hơn ~260.000 lần.
 
 ### Test
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **31 test**, không cần MongoDB
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **33 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini thật).
 - Extension: `npm run typecheck`. Trang thử: `extension/test/fake-login.html`, `extension/test/ad-redirect.html`.
 
@@ -130,6 +130,8 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
 | Biểu đồ dashboard lệch kích thước / trống khi chụp | Canvas không có khung cố định; animation | `.chart-box` cao 240px, `maintainAspectRatio:false`, `animation:false` |
 | `shopee.vn` bị ML chấm lừa đảo | Shopee bị giả mạo rất nhiều trong dữ liệu train | Không cộng điểm ML cho tên miền chính chủ trong `BRANDS` + có trong whitelist |
 | Mất `.venv` sau khi dời thư mục | venv gắn đường dẫn cũ | `python -m venv .venv` rồi `pip install -r requirements.txt` |
+| Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
+| Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
 
 ---
 
@@ -152,8 +154,10 @@ link hiển thị một tên miền nhưng trỏ tên miền khác, link đáng 
   giữ chặn nhầm 0.6%. Trang bị ML nghi ngờ sẽ được Gemini xem tiếp.
 - **ML chạy bằng Python thuần từ file JSON:** không phải cài scikit-learn trên Render (nhẹ, build nhanh).
 - **Gemini chỉ gọi khi cần** (có form và điểm < 0.6): tiết kiệm hạn mức, giảm độ trễ.
-- **Riêng tư:** chỉ gửi chữ trên trang khi trang có form; `events` chỉ lưu tên miền; email chỉ gửi khi bật
-  công tắc Gmail; tooltip rê chuột chấm hoàn toàn trên máy.
+- **Riêng tư:** chỉ gửi chữ trên trang khi trang có form, và không bao giờ gửi với hộp thư/nhắn tin
+  (Gmail, Outlook, Zalo web...); `events` không lưu tên của trang an toàn người dùng tự mở (chỉ đếm);
+  email chỉ gửi khi bật công tắc Gmail; tooltip rê chuột chấm hoàn toàn trên máy.
+- **Ghim phiên bản thư viện** trong `requirements.txt` để Render build lại không hỏng bất ngờ.
 - **Không chặn quảng cáo thông thường** (Google, Facebook) vì người dùng có thể chủ động bấm; chỉ chặn mạng
   popunder/chuyển hướng cưỡng ép.
 - **Không chép danh sách ABPVN vào repo** (giấy phép GPLv3) — chỉ học cách phân loại.
@@ -195,3 +199,5 @@ CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itx
 | `81d9aed` | Dashboard gọn hơn, sửa lỗi nhỏ |
 | `63e2461` | Chặn chuyển hướng quảng cáo |
 | `9b962e0` | Sửa lỗi regex 2KB, cảnh báo affiliate, "luôn cho phép" |
+| `8ef8a71` | File ghi chú này |
+| (tiếp theo) | Sửa lỗi mã quản trị Unicode, popup hiện kết quả cũ; bảo vệ riêng tư; ghim thư viện; cập nhật README |

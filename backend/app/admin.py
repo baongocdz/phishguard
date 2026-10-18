@@ -16,7 +16,9 @@ from .deps import get_db
 
 def require_admin(x_admin_token: str = Header(default="")) -> None:
     # Chưa đặt PHISHGUARD_ADMIN_TOKEN thì khóa hẳn trang quản trị.
-    if not settings.admin_token or not secrets.compare_digest(x_admin_token, settings.admin_token):
+    given, expected = x_admin_token.encode(), settings.admin_token.encode()
+    # So bằng bytes: compare_digest với chuỗi có dấu tiếng Việt sẽ báo lỗi.
+    if not expected or not secrets.compare_digest(given, expected):
         raise HTTPException(status_code=401, detail="Sai hoặc thiếu mã quản trị.")
 
 

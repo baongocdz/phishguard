@@ -25,12 +25,20 @@ function collectPageInfo(): PageInfo {
     externalLinkCount,
     // Chỉ gửi chữ trên trang khi có form (lúc backend có thể hỏi Gemini),
     // để không đẩy nội dung mọi trang người dùng đọc lên server.
-    textSnippet: formCount > 0 || hasPasswordField ? visibleText(TEXT_LIMIT) : "",
+    textSnippet: (formCount > 0 || hasPasswordField) && !PRIVATE_APPS.has(location.hostname)
+      ? visibleText(TEXT_LIMIT)
+      : "",
     collectedAt: Date.now(),
   };
 }
 
 const TEXT_LIMIT = 2000;
+// Hộp thư / nhắn tin: chữ trên trang là thư và tin nhắn riêng tư, không gửi đi.
+// (Email đang mở trong Gmail được phân tích riêng bởi gmail.ts, có công tắc tắt.)
+const PRIVATE_APPS = new Set([
+  "mail.google.com", "outlook.live.com", "outlook.office.com", "outlook.office365.com",
+  "mail.yahoo.com", "chat.zalo.me", "web.telegram.org", "www.messenger.com", "web.whatsapp.com",
+]);
 
 function visibleText(limit: number): string {
   return (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
