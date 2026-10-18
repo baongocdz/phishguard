@@ -1,4 +1,4 @@
-import { allowOnce, applyAdRules } from "./adblock";
+import { allowAlways, allowOnce, applyAdRules } from "./adblock";
 import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
 import type { AnalysisResult, ExtMessage, PageInfo } from "./types";
 
@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
     return true;
   }
   if (msg.type === "AD_ALLOW") {
-    allowOnce(msg.url).then(sendResponse);
+    (msg.always ? allowAlways(msg.url) : allowOnce(msg.url)).then(sendResponse);
     return true;
   }
   if (msg.type === "REPORT") {
@@ -60,5 +60,5 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onInstalled.addListener(() => void applyAdRules());
 chrome.runtime.onStartup.addListener(() => void applyAdRules());
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && "adBlock" in changes) void applyAdRules();
+  if (area === "local" && ("adBlock" in changes || "adAllow" in changes)) void applyAdRules();
 });

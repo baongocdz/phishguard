@@ -139,9 +139,19 @@ async function setupGmailToggle(): Promise<void> {
 // ---------- Bật/tắt chặn chuyển hướng quảng cáo ----------
 async function setupAdToggle(): Promise<void> {
   const box = $("ad-block") as HTMLInputElement;
-  const { adBlock, adBlockedCount } = await chrome.storage.local.get(["adBlock", "adBlockedCount"]);
+  const { adBlock, adBlockedCount, adAllow } = await chrome.storage.local.get(["adBlock", "adBlockedCount", "adAllow"]);
   box.checked = adBlock !== false;
   $("ad-count").textContent = `Đã chặn ${Number(adBlockedCount) || 0} lần chuyển hướng quảng cáo.`;
+  const allowed: string[] = Array.isArray(adAllow) ? adAllow : [];
+  if (allowed.length) {
+    $("ad-allow").classList.remove("hidden");
+    $("ad-allow-text").textContent = `Luôn cho phép: ${allowed.join(", ")}.`;
+    $("ad-allow-clear").addEventListener("click", (e) => {
+      e.preventDefault();
+      void chrome.storage.local.set({ adAllow: [] });
+      $("ad-allow").classList.add("hidden");
+    });
+  }
   box.addEventListener("change", () => void chrome.storage.local.set({ adBlock: box.checked }));
 }
 

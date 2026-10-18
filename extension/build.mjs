@@ -26,7 +26,8 @@ function copyStatic() {
   }
   // Chuyển hướng (redirect) cần quyền trên tên miền quảng cáo: sinh từ danh sách.
   const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
-  const ads = JSON.parse(readFileSync("src/ad-domains.json", "utf8")).domains;
+  const list = JSON.parse(readFileSync("src/ad-domains.json", "utf8"));
+  const ads = [...list.domains, ...list.affiliate];
   manifest.host_permissions = [...manifest.host_permissions, ...ads.map((d) => `*://*.${d}/*`)];
   writeFileSync("dist/manifest.json", JSON.stringify(manifest, null, 2));
 }

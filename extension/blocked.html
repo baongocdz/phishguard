@@ -21,16 +21,17 @@
   </head>
   <body>
     <div class="card">
-      <h1>🛡️ Đã chặn chuyển hướng sang trang quảng cáo</h1>
-      <p>Trang bạn đang xem vừa cố đưa bạn tới một <b>mạng quảng cáo chuyển hướng (popunder)</b>:</p>
+      <h1 id="title">🛡️ Đã chặn chuyển hướng sang trang quảng cáo</h1>
+      <p id="lead">Trang bạn đang xem vừa cố đưa bạn tới một mạng quảng cáo chuyển hướng (popunder):</p>
       <p class="url" id="url"></p>
       <ul>
-        <li>Các trang này thường bật quảng cáo, cài tiện ích hoặc dẫn tới trang lừa đảo, trúng thưởng giả.</li>
-        <li>Bạn không bấm vào đây một cách chủ động thì cứ đóng tab hoặc quay lại.</li>
+        <li id="tip1">Các trang này thường bật quảng cáo, cài tiện ích hoặc dẫn tới trang lừa đảo, trúng thưởng giả.</li>
+        <li id="tip2">Bạn không bấm vào đây một cách chủ động thì cứ đóng tab hoặc quay lại.</li>
       </ul>
       <div class="row">
         <button class="primary" id="back">← Quay lại an toàn</button>
-        <button class="ghost" id="go">Vẫn mở trang này</button>
+        <button class="ghost" id="go">Mở lần này</button>
+        <button class="ghost" id="always">Luôn cho phép tên miền này</button>
       </div>
     </div>
     <script src="blocked.js"></script>

@@ -4,71 +4,109 @@
 import adList from "./ad-domains.json";
 
 export const AD_DOMAINS: string[] = adList.domains;
+// Link tiếp thị liên kết (affiliate). Trên các trang phim/truyện lậu ở Việt Nam,
+// "bấm đâu cũng chuyển trang" thường dẫn tới đây (học từ bộ lọc ABPVN).
+export const AFFILIATE_DOMAINS: string[] = adList.affiliate;
+const AFFILIATE_HOME: string[] = adList.affiliateHome;
 
-const BASE_ID = 1000; // id 1000.. cho luật chặn, 9000.. cho luật "cho qua một lần"
-const CHUNK = 10; // tách regex cho gọn, tránh vượt giới hạn bộ nhớ regex của Chrome
+const RULE_AD = 1000;
+const RULE_AD_FRAME = 1001;
+const RULE_AFFILIATE = 1002;
+const ALLOW_BASE = 2000; // 2000.. luật "luôn cho phép" người dùng đã chọn
+const ONCE_BASE = 9000; // 9000.. luật "cho qua một lần" (session, 60 giây)
 
-const escape = (d: string) => d.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+// Chrome giới hạn mỗi regex 2KB bộ nhớ, nên KHÔNG so tên miền bằng regex.
+// requestDomains lo phần so tên miền (khớp cả tên miền con); regex "^.+$" chỉ để
+// lấy lại toàn bộ URL (\0) gắn vào sau dấu # của trang cảnh báo.
+function redirectTo(prefix: string): chrome.declarativeNetRequest.RuleAction {
+  return {
+    type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+    redirect: { regexSubstitution: `${chrome.runtime.getURL("blocked.html")}#${prefix}\\0` },
+  };
+}
 
-function buildRules(): chrome.declarativeNetRequest.Rule[] {
-  const page = chrome.runtime.getURL("blocked.html");
-  const rules: chrome.declarativeNetRequest.Rule[] = [];
-  for (let i = 0; i < AD_DOMAINS.length; i += CHUNK) {
-    const group = AD_DOMAINS.slice(i, i + CHUNK).map(escape).join("|");
-    rules.push({
-      id: BASE_ID + rules.length,
+function buildRules(allowed: string[]): chrome.declarativeNetRequest.Rule[] {
+  const MAIN = chrome.declarativeNetRequest.ResourceType.MAIN_FRAME;
+  const rules: chrome.declarativeNetRequest.Rule[] = [
+    {
+      id: RULE_AD,
       priority: 1,
-      action: {
-        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-        // \0 = toàn bộ URL gốc, đặt sau dấu # để trang cảnh báo đọc lại.
-        redirect: { regexSubstitution: `${page}#\\0` },
-      },
-      condition: {
-        regexFilter: `^https?://([^/?#]*\\.)?(${group})([/?#:].*)?$`,
-        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
-      },
-    });
-  }
-  // Khung quảng cáo nhúng trong trang (iframe) thì chặn thẳng.
-  rules.push({
-    id: BASE_ID + rules.length,
-    priority: 1,
-    action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
-    condition: {
-      requestDomains: AD_DOMAINS,
-      resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+      action: redirectTo("ad|"),
+      condition: { regexFilter: "^.+$", requestDomains: AD_DOMAINS, resourceTypes: [MAIN] },
     },
-  });
+    {
+      // Khung quảng cáo nhúng trong trang (iframe) thì chặn thẳng.
+      id: RULE_AD_FRAME,
+      priority: 1,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
+      condition: { requestDomains: AD_DOMAINS, resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME] },
+    },
+    {
+      // Chỉ cảnh báo khi trang BÊN THỨ BA đẩy sang link affiliate; đang ở chính
+      // Shopee/Lazada thì không.
+      id: RULE_AFFILIATE,
+      priority: 1,
+      action: redirectTo("aff|"),
+      condition: {
+        regexFilter: "^.+$",
+        requestDomains: AFFILIATE_DOMAINS,
+        excludedInitiatorDomains: AFFILIATE_HOME,
+        resourceTypes: [MAIN],
+      },
+    },
+  ];
+  allowed.slice(0, 500).forEach((domain, i) => rules.push({
+    id: ALLOW_BASE + i,
+    priority: 2,
+    action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+    condition: { requestDomains: [domain], resourceTypes: [MAIN] },
+  }));
   return rules;
 }
 
 export async function applyAdRules(): Promise<void> {
-  const { adBlock } = await chrome.storage.local.get("adBlock");
+  const { adBlock, adAllow } = await chrome.storage.local.get(["adBlock", "adAllow"]);
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: existing.filter((r) => r.id >= BASE_ID && r.id < 9000).map((r) => r.id),
-    addRules: adBlock === false ? [] : buildRules(), // mặc định bật
+    removeRuleIds: existing.filter((r) => r.id >= RULE_AD && r.id < ONCE_BASE).map((r) => r.id),
+    addRules: adBlock === false ? [] : buildRules(Array.isArray(adAllow) ? adAllow : []), // mặc định bật
   });
 }
 
-/** Người dùng bấm "Vẫn mở": cho tên miền này qua trong 60 giây. */
-export async function allowOnce(url: string): Promise<boolean> {
-  let host: string;
+function hostOf(url: string): string | null {
   try {
-    host = new URL(url).hostname;
+    return new URL(url).hostname;
   } catch {
-    return false;
+    return null;
   }
-  const id = 9000 + Math.floor(Math.random() * 900);
+}
+
+/** "Vẫn mở": cho tên miền này qua trong 60 giây. */
+export async function allowOnce(url: string): Promise<boolean> {
+  const host = hostOf(url);
+  if (!host) return false;
+  const id = ONCE_BASE + Math.floor(Math.random() * 900);
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [id],
     addRules: [{
       id,
-      priority: 2,
+      priority: 3,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: { requestDomains: [host], resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME] },
     }],
   });
   setTimeout(() => void chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [id] }), 60_000);
+  return true;
+}
+
+/** "Luôn cho phép tên miền này": nhớ vĩnh viễn (xóa được trong popup). */
+export async function allowAlways(url: string): Promise<boolean> {
+  const host = hostOf(url);
+  if (!host) return false;
+  const { adAllow } = await chrome.storage.local.get("adAllow");
+  const list: string[] = Array.isArray(adAllow) ? adAllow : [];
+  if (!list.includes(host)) list.push(host);
+  await chrome.storage.local.set({ adAllow: list });
+  await applyAdRules();
   return true;
 }

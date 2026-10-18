@@ -24,12 +24,18 @@
 <h3>3. Link rút gọn có quảng cáo</h3>
 <p><a href="https://ouo.io/abc123">Tải tài liệu (link rút gọn)</a></p>
 
-<h3>4. Link bình thường (không bị chặn)</h3>
+<h3>4. Bấm vào trang, bị ép mở link tiếp thị Shopee (kiểu web phim lậu ở VN)</h3>
+<button id="affiliate">▶ Đọc chương tiếp</button>
+
+<h3>5. Link bình thường (không bị chặn)</h3>
 <p><a href="https://vnexpress.net/">vnexpress.net</a></p>
 
 <script>
   document.getElementById("popunder").addEventListener("click", () => {
     window.open("https://popads.net/", "_blank");
+  });
+  document.getElementById("affiliate").addEventListener("click", () => {
+    window.open("https://s.shopee.vn/AbCdEf123", "_blank");
   });
   document.getElementById("redirect").addEventListener("click", () => {
     setTimeout(() => { location.href = "https://www.propellerads.com/"; }, 2000);

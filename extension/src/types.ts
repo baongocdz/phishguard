@@ -43,4 +43,4 @@ export type ExtMessage =
   | { type: "ANALYZE_EMAIL"; payload: EmailInfo }
   | { type: "ANALYZE_URL"; url: string; kind: "qr" | "manual" }
   | { type: "REPORT"; payload: ReportInfo }
-  | { type: "AD_ALLOW"; url: string };
+  | { type: "AD_ALLOW"; url: string; always: boolean };
