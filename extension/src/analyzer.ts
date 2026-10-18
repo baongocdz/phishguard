@@ -1,5 +1,5 @@
 import { API_BASE, API_TIMEOUT_MS } from "./config";
-import type { AnalysisResult, PageInfo } from "./types";
+import type { AnalysisResult, EmailInfo, PageInfo, ReportInfo } from "./types";
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
@@ -61,7 +61,7 @@ function isOfficial(host: string, domains: string[]): boolean {
 /**
  * Bộ luật heuristic chạy cục bộ tại Extension, dùng khi backend lỗi hoặc offline.
  */
-export async function analyzeLocal(info: PageInfo): Promise<AnalysisResult> {
+export async function analyzeLocal(info: Pick<PageInfo, "url" | "hostname" | "protocol" | "hasPasswordField">): Promise<AnalysisResult> {
   const reasons: string[] = [];
   let score = 0;
 
@@ -136,5 +136,48 @@ export async function analyze(info: PageInfo): Promise<AnalysisResult> {
     return (await res.json()) as AnalysisResult;
   } catch {
     return analyzeLocal(info);
+  }
+}
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(String(res.status));
+  return (await res.json()) as T;
+}
+
+/** Phân tích email/tin nhắn. Không có bộ luật email cục bộ nên lỗi thì trả null. */
+export async function analyzeEmail(email: EmailInfo): Promise<AnalysisResult | null> {
+  try {
+    return await postJson<AnalysisResult>("/analyze-email", email);
+  } catch {
+    return null;
+  }
+}
+
+/** Phân tích một URL rời (vd lấy từ mã QR), không có thông tin trang. */
+export async function analyzeUrl(raw: string, kind: "qr" | "manual"): Promise<AnalysisResult | null> {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  return analyze({
+    url: u.href, hostname: u.hostname, protocol: u.protocol, title: "",
+    formCount: 0, hasPasswordField: false, linkCount: 0, externalLinkCount: 0,
+    textSnippet: "", kind, collectedAt: Date.now(),
+  });
+}
+
+export async function sendReport(report: ReportInfo): Promise<boolean> {
+  try {
+    await postJson("/report", report);
+    return true;
+  } catch {
+    return false;
   }
 }

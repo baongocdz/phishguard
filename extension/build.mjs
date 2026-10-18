@@ -8,6 +8,7 @@ const options = {
     background: "src/background.ts",
     content: "src/content.ts",
     popup: "src/popup.ts",
+    gmail: "src/gmail.ts",
   },
   bundle: true,
   format: "iife",

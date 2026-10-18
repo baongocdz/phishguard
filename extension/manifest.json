@@ -1,17 +1,37 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Phát hiện và cảnh báo phishing theo thời gian thực.",
-  "permissions": ["storage"],
-  "host_permissions": ["http://localhost:8000/*", "https://*.onrender.com/*"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://*.onrender.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "gmail.js"
+      ],
       "run_at": "document_idle"
     }
   ],

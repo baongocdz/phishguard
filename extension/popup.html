@@ -5,11 +5,23 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>PhishGuard</h1>
+    <h1>🛡️ PhishGuard</h1>
     <p id="url" class="url"></p>
     <p id="verdict" class="chip"></p>
     <ul id="reasons"></ul>
     <p id="source" class="url"></p>
+    <button id="report" class="btn hidden"></button>
+    <p id="report-msg" class="url"></p>
+
+    <hr />
+    <button id="scan-qr" class="btn primary">▦ Quét mã QR trên màn hình</button>
+    <div id="qr-result"></div>
+
+    <hr />
+    <label class="toggle"><input type="checkbox" id="gmail-scan" /> Phân tích email đang mở trong Gmail</label>
+    <p class="url">Khi bật, nội dung email đang mở được gửi tới máy chủ PhishGuard (và AI Gemini) để phân tích.</p>
+
+    <p class="links"><a id="open-web" href="#" target="_blank">Kiểm tra link / email / QR</a> · <a id="open-dash" href="#" target="_blank">Quản trị</a></p>
     <script src="popup.js"></script>
   </body>
 </html>

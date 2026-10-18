@@ -1,4 +1,4 @@
-body { width: 320px; margin: 0; padding: 12px 14px; font: 14px/1.4 system-ui, sans-serif; }
+body { width: 330px; margin: 0; padding: 12px 14px; font: 14px/1.4 system-ui, sans-serif; color: #1b2333; }
 h1 { font-size: 16px; margin: 0 0 8px; }
 .url { word-break: break-all; color: #555; font-size: 12px; margin: 0 0 8px; }
 .chip { display: inline-block; padding: 2px 10px; border-radius: 12px; color: #fff; margin: 0 0 6px; }
@@ -6,4 +6,17 @@ h1 { font-size: 16px; margin: 0 0 8px; }
 .chip.suspicious { background: #ef6c00; }
 .chip.phishing { background: #c62828; }
 .chip.none { background: #757575; }
-ul { margin: 4px 0 0 18px; padding: 0; }
+ul { margin: 4px 0 8px 18px; padding: 0; }
+hr { border: none; border-top: 1px solid #e2e7f0; margin: 10px 0; }
+.btn { width: 100%; padding: 7px 10px; border: 1px solid #cfd6e4; background: #fff; border-radius: 8px;
+       cursor: pointer; font: inherit; margin-bottom: 6px; }
+.btn.primary { background: #2453d6; color: #fff; border-color: #2453d6; font-weight: 600; }
+.btn:disabled { opacity: .6; cursor: wait; }
+.hidden { display: none; }
+.toggle { display: flex; gap: 6px; align-items: center; font-weight: 600; margin-bottom: 4px; cursor: pointer; }
+.links { font-size: 12px; margin: 8px 0 0; }
+.links a { color: #2453d6; }
+.qr-box { border: 1px solid #e2e7f0; border-left: 5px solid #757575; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
+.qr-box.safe { border-left-color: #2e7d32; }
+.qr-box.suspicious { border-left-color: #ef6c00; }
+.qr-box.phishing { border-left-color: #c62828; }

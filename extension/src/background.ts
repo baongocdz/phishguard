@@ -1,4 +1,4 @@
-import { analyze } from "./analyzer";
+import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
 import type { AnalysisResult, ExtMessage, PageInfo } from "./types";
 
 const resultKey = (tabId: number) => `result:${tabId}`;
@@ -22,6 +22,20 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
   if (msg.type === "PAGE_INFO" && sender.tab?.id !== undefined) {
     void handlePageInfo(sender.tab.id, msg.payload);
     return false;
+  }
+  // Các yêu cầu dưới đây gọi API từ background (content script trên Gmail bị
+  // CSP của trang chặn gọi thẳng tới backend).
+  if (msg.type === "ANALYZE_EMAIL") {
+    analyzeEmail(msg.payload).then(sendResponse);
+    return true;
+  }
+  if (msg.type === "ANALYZE_URL") {
+    analyzeUrl(msg.url, msg.kind).then(sendResponse);
+    return true;
+  }
+  if (msg.type === "REPORT") {
+    sendReport(msg.payload).then(sendResponse);
+    return true;
   }
   if (msg.type === "GET_RESULT") {
     chrome.storage.session.get(resultKey(msg.tabId)).then((data) => {
