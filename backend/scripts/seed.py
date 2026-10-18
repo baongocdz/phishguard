@@ -5,7 +5,19 @@ from pymongo import MongoClient
 
 from app.config import settings
 
-WHITELIST = ["google.com", "github.com", "wikipedia.org", "microsoft.com", "anthropic.com"]
+WHITELIST = [
+    # Quốc tế
+    "google.com", "github.com", "wikipedia.org", "microsoft.com", "anthropic.com", "apple.com",
+    "facebook.com", "youtube.com", "paypal.com", "amazon.com", "netflix.com", "instagram.com",
+    "stackoverflow.com", "reddit.com", "linkedin.com", "zoom.us", "notion.so", "chatgpt.com",
+    # Việt Nam: báo chí, thương mại, ngân hàng, giáo dục, nhà nước
+    "vnexpress.net", "tuoitre.vn", "dantri.com.vn", "thanhnien.vn", "24h.com.vn", "kenh14.vn",
+    "zingnews.vn", "baomoi.com", "cafef.vn", "shopee.vn", "tiki.vn", "lazada.vn",
+    "thegioididong.com", "dienmayxanh.com", "fptshop.com.vn", "cellphones.com.vn",
+    "vietcombank.com.vn", "techcombank.com.vn", "vietinbank.vn", "bidv.com.vn", "agribank.com.vn",
+    "mbbank.com.vn", "tpb.vn", "momo.vn", "zalo.me", "viettel.vn", "fpt.com.vn", "vnpt.vn",
+    "chinhphu.vn", "tdmu.edu.vn",
+]
 BLACKLIST = ["phish-sample.test"]  # Sau này nạp từ PhishTank/OpenPhish
 
 

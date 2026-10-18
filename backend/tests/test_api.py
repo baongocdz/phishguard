@@ -260,3 +260,25 @@ def test_admin_requires_token(monkeypatch):
     assert c.get("/admin/events", headers={"X-Admin-Token": ""}).status_code == 401
     monkeypatch.setattr(settings, "admin_token", "s3cret")
     assert c.get("/admin/events", headers={"X-Admin-Token": "wrong"}).status_code == 401
+
+
+# ---------------- Mô hình ML ----------------
+from app import ml
+from app.service import apply_ml
+
+
+def test_ml_model_flags_phishing_domain():
+    p = ml.predict("secure-vietcombank-xacminh.top")
+    assert p is not None and p > 0.9
+    req = AnalyzeRequest(url="https://caseid1008934573489.firebaseapp.com/", hostname="caseid1008934573489.firebaseapp.com", protocol="https:")
+    r = apply_ml(req, run_heuristics(req))
+    assert r.verdict != "safe" and any("học máy" in x for x in r.reasons)
+
+
+def test_ml_skips_official_brand_domain():
+    req = AnalyzeRequest(url="https://shopee.vn/", hostname="shopee.vn", protocol="https:")
+    assert apply_ml(req, run_heuristics(req)).verdict == "safe"
+
+
+def test_ml_bonus_is_capped():
+    assert ml.combine(0.0, 0.99) == 0.3 and ml.combine(0.5, 0.75) == 0.65 and ml.combine(0.2, None) == 0.2

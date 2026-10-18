@@ -8,12 +8,33 @@ from .config import settings
 from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
-from .heuristics import run_heuristics
+from . import ml
+from .heuristics import BRANDS, _is_official, run_heuristics
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
 
 log = logging.getLogger("phishguard.service")
 
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
+
+
+OFFICIAL_DOMAINS = sorted({d for domains in BRANDS.values() for d in domains})
+
+
+def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
+    """Cộng điểm từ mô hình ML (xem app/ml.py và eval/results/REPORT.md).
+    Bỏ qua tên miền chính chủ của các thương hiệu: chính vì hay bị giả mạo nên
+    mô hình dễ chấm nhầm tên miền thật (vd shopee.vn)."""
+    host = req.hostname.lower()
+    if _is_official(host, OFFICIAL_DOMAINS):
+        return result
+    prob = ml.predict(host)
+    score = ml.combine(result.score, prob)
+    if score == result.score:
+        return result
+    verdict = "phishing" if score >= 0.6 else "suspicious" if score >= 0.3 else "safe"
+    reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})."
+    return AnalyzeResponse(verdict=verdict, score=score, reasons=result.reasons + [reason],
+                           source=result.source)
 
 
 def should_call_gemini(req: AnalyzeRequest, heuristic: AnalyzeResponse) -> bool:
@@ -82,7 +103,7 @@ async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
         result.source = "cache"
         return result
 
-    result = run_heuristics(req)
+    result = apply_ml(req, run_heuristics(req))
     gemini_failed = False
 
     if should_call_gemini(req, result):
