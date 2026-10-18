@@ -295,3 +295,32 @@ def test_safe_page_visit_is_not_logged_with_hostname():
     c, db = make_client()
     c.post("/analyze", json=payload("https://example.org/", "example.org"))
     assert db["events"].docs and db["events"].docs[-1]["hostname"] == ""
+
+
+# ---------------- Tên miền na ná / link rút gọn ----------------
+from app import shortlinks
+
+
+@pytest.mark.parametrize("host", ["vietcornbank.com", "netfllx.com", "lnstagram.com", "paypai.com"])
+def test_lookalike_domains_are_flagged(host):
+    r = score_of(host, pw=False)
+    assert r.verdict != "safe" and "na ná" in r.reasons[0]
+
+
+def test_short_link_is_expanded_and_target_checked(monkeypatch):
+    async def fake_expand(url):
+        return "https://secure-vietcombank-xacminh.top/login"
+    monkeypatch.setattr(shortlinks, "expand", fake_expand)
+    c, _ = make_client()
+    r = c.post("/analyze", json=payload("https://bit.ly/abc", "bit.ly")).json()
+    assert r["verdict"] == "phishing"
+    assert "dẫn tới secure-vietcombank-xacminh.top" in r["reasons"][0]
+    assert r["breakdown"][0]["layer"] == "link"
+
+
+def test_short_link_expander_blocks_internal_targets():
+    assert not shortlinks._safe_target("http://127.0.0.1/admin")
+    assert not shortlinks._safe_target("http://10.0.0.5/")
+    assert not shortlinks._safe_target("http://localhost:8000/")
+    assert not shortlinks._safe_target("file:///etc/passwd")
+    assert shortlinks._safe_target("https://example.com/")

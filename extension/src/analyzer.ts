@@ -13,15 +13,15 @@ const BRANDS: Record<string, string[]> = {
   outlook: ["outlook.com", "live.com", "office.com", "office365.com"],
   google: ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com"],
   gmail: ["gmail.com", "google.com"],
-  facebook: ["facebook.com", "fb.com"],
+  facebook: ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
   instagram: ["instagram.com"],
   netflix: ["netflix.com"],
-  amazon: ["amazon.com"],
+  amazon: ["amazon.com", "amazonaws.com", "amazon.co.jp", "amazon.de"],
   github: ["github.com", "github.io"],
   binance: ["binance.com"],
   zalo: ["zalo.me", "zaloapp.com"],
   shopee: ["shopee.vn"],
-  lazada: ["lazada.vn"],
+  lazada: ["lazada.vn", "lazada.co.th", "lazada.com.my", "lazada.sg", "lazada.co.id", "lazada.com.ph"],
   vietcombank: ["vietcombank.com.vn"],
   techcombank: ["techcombank.com", "techcombank.com.vn"],
   vietinbank: ["vietinbank.vn"],
@@ -56,6 +56,37 @@ function tokens(host: string): string[] {
 
 function isOfficial(host: string, domains: string[]): boolean {
   return domains.some((d) => host === d || host.endsWith("." + d));
+}
+
+// Giữ đồng bộ với lookalike_brand trong backend/app/heuristics.py.
+const HOMOGLYPHS: [string, string][] = [["rn", "m"], ["vv", "w"]];
+
+function editDistance(a: string, b: string, limit: number): number {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    }
+    if (Math.min(...cur) > limit) return limit + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Thương hiệu mà tên miền "na ná" (vietcornbank, netfllx...). */
+function lookalikeBrand(host: string, parts: string[]): string | undefined {
+  for (const [b, official] of Object.entries(BRANDS)) {
+    if (b.length < 6 || isOfficial(host, official)) continue;
+    const limit = b.length >= 9 ? 2 : 1;
+    for (const t of parts) {
+      const fixed = HOMOGLYPHS.reduce((s, [fake, real]) => s.split(fake).join(real), t);
+      if (fixed !== t && fixed.startsWith(b)) return b;
+      if (t !== b && editDistance(t, b, limit) <= limit) return b;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -97,9 +128,13 @@ export async function analyzeLocal(info: Pick<PageInfo, "url" | "hostname" | "pr
     const brand = Object.keys(BRANDS).find(
       (b) => parts.some((t) => t.startsWith(b)) && !isOfficial(host, BRANDS[b]),
     );
+    const lookalike = brand ? undefined : lookalikeBrand(host, parts);
     if (brand) {
       score += 0.4;
       reasons.push(`Tên miền chứa tên thương hiệu '${brand}' nhưng không phải tên miền chính thức.`);
+    } else if (lookalike) {
+      score += 0.4;
+      reasons.push(`Tên miền na ná thương hiệu '${lookalike}' (dùng ký tự gần giống để đánh lừa).`);
     }
     if (SUSPICIOUS_TLDS.has(host.split(".").pop() ?? "")) {
       score += 0.2;

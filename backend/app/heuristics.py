@@ -38,15 +38,15 @@ BRANDS: dict[str, list[str]] = {
     "outlook": ["outlook.com", "live.com", "office.com", "office365.com"],
     "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com"],
     "gmail": ["gmail.com", "google.com"],
-    "facebook": ["facebook.com", "fb.com"],
+    "facebook": ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
     "instagram": ["instagram.com"],
     "netflix": ["netflix.com"],
-    "amazon": ["amazon.com"],
+    "amazon": ["amazon.com", "amazonaws.com", "amazon.co.jp", "amazon.de"],
     "github": ["github.com", "github.io"],
     "binance": ["binance.com"],
     "zalo": ["zalo.me", "zaloapp.com"],
     "shopee": ["shopee.vn"],
-    "lazada": ["lazada.vn"],
+    "lazada": ["lazada.vn", "lazada.co.th", "lazada.com.my", "lazada.sg", "lazada.co.id", "lazada.com.ph"],
     "vietcombank": ["vietcombank.com.vn"],
     "techcombank": ["techcombank.com", "techcombank.com.vn"],
     "vietinbank": ["vietinbank.vn"],
@@ -78,6 +78,42 @@ LEET = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t"
 def _tokens(host: str) -> list[str]:
     """Tách tên miền theo '.' và '-', đổi chữ số giả chữ cái về chữ."""
     return [t.translate(LEET) for t in re.split(r"[.-]", host) if t]
+
+
+# Cặp ký tự trông giống một chữ khác: vietcornbank -> vietcombank, vvebsite -> website.
+HOMOGLYPHS = [("rn", "m"), ("vv", "w")]
+
+
+def _edit_distance(a: str, b: str, limit: int) -> int:
+    """Khoảng cách Levenshtein, dừng sớm khi vượt limit (trả limit + 1)."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        if min(cur) > limit:
+            return limit + 1
+        prev = cur
+    return prev[-1]
+
+
+def lookalike_brand(host: str, tokens: list[str]) -> str | None:
+    """Thương hiệu mà tên miền "na ná" (không chứa đúng tên, nhưng gần giống)."""
+    for b, official in BRANDS.items():
+        if len(b) < 6 or _is_official(host, official):
+            continue  # tên ngắn (zalo, bidv...) so gần đúng dễ nhầm, bỏ qua
+        limit = 2 if len(b) >= 9 else 1
+        for t in tokens:
+            fixed = t
+            for fake, real in HOMOGLYPHS:
+                fixed = fixed.replace(fake, real)
+            if fixed != t and fixed.startswith(b):
+                return b
+            if t != b and _edit_distance(t, b, limit) <= limit:
+                return b
+    return None
 
 
 def _is_official(host: str, domains: list[str]) -> bool:
@@ -114,6 +150,8 @@ def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
         )
         if brand:
             t.add(0.4, f"Tên miền chứa tên thương hiệu '{brand}' nhưng không phải tên miền chính thức.")
+        elif lookalike := lookalike_brand(host, tokens):
+            t.add(0.4, f"Tên miền na ná thương hiệu '{lookalike}' (dùng ký tự gần giống để đánh lừa).")
         if host.rsplit(".", 1)[-1] in SUSPICIOUS_TLDS:
             t.add(0.2, "Đuôi tên miền thường bị dùng cho trang lừa đảo.")
         if any(w in t for t in tokens for w in LURE_WORDS):

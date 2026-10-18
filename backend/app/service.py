@@ -2,13 +2,14 @@ import asyncio
 import hashlib
 import logging
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from . import gemini_client
 from .config import settings
 from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
-from . import ml
+from . import ml, shortlinks
 from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
@@ -78,6 +79,24 @@ def merge(h: AnalyzeResponse, g: GeminiOutput) -> AnalyzeResponse:
 
 
 async def analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
+    """Link rút gọn thì mở ra trước, rồi chấm trang đích thật."""
+    if shortlinks.is_shortener(req.hostname):
+        target = await shortlinks.expand(req.url)
+        if target:
+            parts = urlsplit(target)
+            inner = req.model_copy(update={
+                "url": target, "hostname": parts.hostname or "", "protocol": parts.scheme + ":",
+            })
+            result = await _analyze(db, inner)
+            note = f"Link rút gọn {req.hostname} thực ra dẫn tới {inner.hostname}."
+            return result.model_copy(update={
+                "reasons": [note] + result.reasons,
+                "breakdown": [Signal(layer="link", label=note, points=0.0)] + result.breakdown,
+            })
+    return await _analyze(db, req)
+
+
+async def _analyze(db, req: AnalyzeRequest) -> AnalyzeResponse:
     """Luồng: blacklist -> whitelist -> cache -> luật -> (Gemini) -> ghi cache."""
     candidates = candidate_domains(req.hostname)
     key = cache_key(req.url)
@@ -143,6 +162,16 @@ async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
         result = AnalyzeResponse(**cached["result"])
         result.source = "cache"
         return result
+
+    # Mở tối đa 3 link rút gọn trong email/tin nhắn để luật xét đích thật.
+    short = [i for i, l in enumerate(req.links) if shortlinks.is_shortener(urlsplit(l.href).hostname or "")][:3]
+    if short:
+        targets = await asyncio.gather(*(shortlinks.expand(req.links[i].href) for i in short))
+        links = list(req.links)
+        for i, target in zip(short, targets):
+            if target:
+                links[i] = links[i].model_copy(update={"href": target})
+        req = req.model_copy(update={"links": links})
 
     result = run_email_rules(req)
     gemini_failed = False
