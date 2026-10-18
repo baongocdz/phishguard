@@ -45,7 +45,7 @@
     <div class="card feat"><h3>🧩 Chrome extension</h3><p>Tự kiểm tra mọi trang đang mở, banner cảnh báo, cảnh báo khi rê chuột vào link, quét mã QR trên màn hình, phân tích email trong Gmail, chặn chuyển hướng quảng cáo.</p></div>
     <div class="card feat"><h3>🌐 Trang web kiểm tra</h3><p>Ai cũng dùng được, không cần cài đặt: dán link, tải ảnh mã QR, dán email hoặc file .eml, dán tin nhắn SMS/Zalo.</p></div>
     <div class="card feat"><h3>📊 Dashboard quản trị</h3><p>Thống kê theo ngày, nguồn kết luận, tên miền độc nhiều nhất; duyệt báo cáo người dùng; quản lý danh sách đen/trắng.</p></div>
-    <div class="card feat"><h3>🤖 Học máy tự huấn luyện</h3><p>Logistic Regression trên n-gram ký tự, học từ 175.000 tên miền (PhiUSIIL). Chạy 0,01 ms/tên miền, không cần GPU.</p></div>
+    <div class="card feat"><h3>🤖 Học máy tự huấn luyện</h3><p>Hai mô hình: tên miền (n-gram ký tự, 175.000 tên miền PhiUSIIL, AUC 0,914) và email/tin nhắn (từ + cặp từ, 16.000 văn bản, F1 0,966, AUC 0,996). Chạy trong vài mili-giây, không cần GPU.</p></div>
     <div class="card feat"><h3>✨ AI Gemini</h3><p>Đọc hiểu nội dung trang/email khi các lớp trước chưa chắc chắn. Có cơ chế chống prompt injection.</p></div>
     <div class="card feat"><h3>🔍 Giải thích được</h3><p>Mỗi kết quả cho biết từng lớp góp bao nhiêu điểm — người dùng hiểu vì sao trang bị cảnh báo.</p></div>
   </div>
@@ -67,6 +67,8 @@
   <div class="card table-wrap"><table id="metrics"></table></div>
   <p class="muted">Trên mẫu 59 tên miền, mô hình học máy đạt độ chính xác ngang Gemini (0,797) nhưng nhanh hơn khoảng 260.000 lần và miễn phí
     — vì vậy hệ thống chỉ hỏi Gemini khi thật sự cần.</p>
+  <p class="muted">Mô hình email/tin nhắn (tập test 4.028 văn bản tiếng Anh): <b>Precision 0,974 · Recall 0,958 · F1 0,966 · ROC-AUC 0,996 · chặn nhầm 1,6%</b>.
+    Tin nhắn tiếng Việt do bộ luật (từ khóa tiếng Việt) và Gemini đảm nhận.</p>
   <div class="imgs">
     <img src="/eval/roc.png" alt="Đường ROC của các phương pháp">
     <img src="/eval/cm_rules.png" alt="Ma trận nhầm lẫn: bộ luật">

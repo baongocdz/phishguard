@@ -9,7 +9,7 @@ from .config import settings
 from .domains import cache_key, candidate_domains
 from .gemini_client import GeminiOutput
 from .email_rules import _domain_of, run_email_rules
-from . import ml, shortlinks
+from . import ml, shortlinks, text_ml
 from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
@@ -33,6 +33,19 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     if score == result.score:
         return result
     reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})."
+    signal = Signal(layer="ml", label=reason, points=round(score - result.score, 2))
+    return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
+                           source=result.source, breakdown=result.breakdown + [signal])
+
+
+def apply_text_ml(req: EmailRequest, result: AnalyzeResponse) -> AnalyzeResponse:
+    """Cộng điểm từ mô hình học máy cho email/tin nhắn (app/text_ml.py), tối đa 0.3."""
+    prob = text_ml.predict(f"{req.subject}
+{req.body}")
+    score = ml.combine(result.score, prob)
+    if score == result.score:
+        return result
+    reason = f"Mô hình học máy đánh giá nội dung giống email/tin nhắn lừa đảo ({prob:.0%})."
     signal = Signal(layer="ml", label=reason, points=round(score - result.score, 2))
     return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
                            source=result.source, breakdown=result.breakdown + [signal])
@@ -173,7 +186,7 @@ async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
                 links[i] = links[i].model_copy(update={"href": target})
         req = req.model_copy(update={"links": links})
 
-    result = run_email_rules(req)
+    result = apply_text_ml(req, run_email_rules(req))
     gemini_failed = False
     # Email do người dùng chủ động mở/dán nên hỏi Gemini khi luật chưa chắc chắn.
     if settings.gemini_api_key and result.score < 0.6:

@@ -324,3 +324,22 @@ def test_short_link_expander_blocks_internal_targets():
     assert not shortlinks._safe_target("http://localhost:8000/")
     assert not shortlinks._safe_target("file:///etc/passwd")
     assert shortlinks._safe_target("https://example.com/")
+
+
+# ---------------- Mô hình email / tin nhắn ----------------
+from app import text_ml
+
+
+def test_text_model_flags_english_phishing_and_skips_unknown_language():
+    p = text_ml.predict("Dear customer, your account has been suspended due to unusual activity. "
+                        "Click here to verify your account within 24 hours. Enter your password and card details.")
+    assert p is not None and p > 0.9
+    assert text_ml.predict("Tai khoan bi khoa, nhap ma OTP") is None  # quá ít từ mô hình biết
+
+
+def test_email_endpoint_adds_text_ml_signal():
+    c, _ = make_client()
+    body = ("Congratulations! You have won a 1000 dollar gift card. Claim your prize now by replying "
+            "with your bank account number and password. Offer expires today, act immediately.")
+    r = c.post("/analyze-email", json={"body": body}).json()
+    assert any(s["layer"] == "ml" for s in r["breakdown"])
