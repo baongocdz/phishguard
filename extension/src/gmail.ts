@@ -111,7 +111,14 @@ async function check(): Promise<void> {
 }
 
 // Gmail là ứng dụng một trang: theo dõi DOM thay đổi để biết khi mở email khác.
-new MutationObserver(() => {
+const observer = new MutationObserver(() => {
+  // Extension vừa được cập nhật / tải lại: bản script cũ còn chạy trên tab này đã mất kết nối
+  // (chrome.storage thành undefined) → tự dừng. Tải lại tab Gmail để chạy bản mới.
+  if (!chrome.runtime?.id) {
+    observer.disconnect();
+    return;
+  }
   clearTimeout(timer);
-  timer = window.setTimeout(() => void check(), 800);
-}).observe(document.body, { childList: true, subtree: true });
+  timer = window.setTimeout(() => void check().catch(() => {}), 800);
+});
+observer.observe(document.body, { childList: true, subtree: true });

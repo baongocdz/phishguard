@@ -102,7 +102,7 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
         t.add(0.0, f"Gửi từ tên miền chính thức ({sender_domain}), người gửi và link không có dấu hiệu giả mạo.")
         return AnalyzeResponse(verdict="safe", score=0.0, reasons=t.reasons, source="email",
                                breakdown=t.signals)
-    text =_strip_accents(f"{req.subject}\n{req.body}")
+    text = _strip_accents(f"{req.subject}\n{req.body}")
     if any(w in text for w in URGENCY):
         t.add(0.15, "Nội dung hối thúc hoặc đe dọa (khóa tài khoản, hết hạn...).")
     if any(w in text for w in SENSITIVE):

@@ -61,7 +61,7 @@
 | Chặn chuyển hướng sang mạng quảng cáo popunder | `src/adblock.ts`, `src/ad-domains.json`, `blocked.html` | Dùng `declarativeNetRequest`. Trang cảnh báo: Quay lại / Mở lần này (60 giây) / Luôn cho phép |
 | Cảnh báo link affiliate Shopee/Lazada bị ép mở | như trên (`affiliate` trong JSON) | Chỉ khi trang **bên thứ ba** đẩy sang. Ý tưởng từ bộ lọc ABPVN |
 | **Chặn tab quảng cáo tự bật của mạng lạ** (không cần danh sách) | `src/popunder.ts`, `src/clicktrack.ts` | Trang tự mở tab sang **web khác** sau cú bấm, mà chỗ bấm không phải link tới đó (nút Play, nền, link trong suốt phủ kín) → trang cảnh báo `pop`. Bỏ qua: cùng web, thương hiệu chính chủ, cửa sổ đăng nhập (`window.open` có kích thước), danh sách "luôn cho phép". `clicktrack.js` chạy mọi khung (cả iframe trình phát) |
-| Chặn URL tự khai `utm_medium=popunder/popup/onclick...` | `src/adblock.ts` (`POP_MARKER`) | Bắt trang đích như `yo88.town/?utm_medium=popunder`. Cần `host_permissions` mọi trang (luật redirect) |
+| Chặn URL tự khai là quảng cáo bật lên (`utm_medium` chứa `popunder/popup/onclick...`) | `src/adblock.ts` (`POP_MARKER`, trang cảnh báo loại `mk`) | Bắt `yo88.town/?utm_medium=popunder`, `net88.forum/?utm_medium=banner_popup_400x400` — kể cả khi người dùng tự bấm banner (vẫn "Mở lần này" được). Cần `host_permissions` mọi trang (luật redirect) |
 | Giải thích điểm (mỗi lớp góp bao nhiêu) | `src/popup.ts` → `renderBreakdown` | Dùng trường `breakdown` backend trả về |
 | Lịch sử cảnh báo (30 dòng) | `src/background.ts` → `addHistory`, popup | Chỉ lưu trên máy (`chrome.storage.local`) |
 
@@ -88,6 +88,10 @@
    **giả mạo thương hiệu** (26 thương hiệu, bắt cả `faceb00k`), **đuôi tên miền rẻ** (`.top`, `.xyz`...),
    **từ khóa dụ dỗ** (`login`, `xacminh`...), **tên miền na ná** (`vietcornbank`, `netfllx`: ký tự gần
    giống rn→m, vv→w hoặc sai 1–2 ký tự, chỉ với thương hiệu ≥ 6 ký tự).
+4b. **Trang cờ bạc / cá cược** (`GAMBLING_WORDS` trong `heuristics.py`): ≥ 2 từ khóa nhà cái trong **tiêu đề**
+   (hoặc ≥ 3 trong tiêu đề + chữ trên trang) → +0.35 (đáng ngờ). Đích của quảng cáo trên web phim lậu
+   (NET88: "Nhà cái uy tín, Thể thao, Casino, Nổ hũ, Tài xỉu"). Không dùng "đánh bạc" để bài báo không bị bắt nhầm.
+   Chỉ có ở backend (extension offline không có tiêu đề/nội dung).
 5. Mô hình ML `app/ml.py` cộng tối đa **0.3** điểm (bỏ qua tên miền chính chủ của thương hiệu).
 5b. **Cộng đồng báo cáo**: ≥ 3 người KHÁC NHAU báo lừa đảo trong 30 ngày → +0.3 (`apply_community`).
     Người báo lưu bằng mã băm IP (không lưu IP); tên miền tin cậy/chính chủ không bị ảnh hưởng.
@@ -143,8 +147,8 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng | 62 |
-| Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ**), affiliate, "Mở lần này", công tắc, popup | 19 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc | 66 |
+| Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ** + URL `utm_medium=…popup…`), affiliate, "Mở lần này", công tắc, popup | 21 |
 | Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
 
@@ -152,7 +156,7 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
   Test trình duyệt (e2e, web-test) chỉ chạy ở máy (dùng Chrome for Testing do Puppeteer tải về `~/.cache/puppeteer`).
 - Thêm `HEADFUL=1` trước lệnh e2e/web-test để xem trình duyệt chạy.
 
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **62 test**, không cần MongoDB
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **66 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
   (thêm `--admin <mã>` để thử dashboard; truyền `http://localhost:8000` để thử bản ở máy).
@@ -199,6 +203,8 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Đổi giao diện xong, trên Render thấy icon thành khối đen to, trang vỡ | Trình duyệt giữ `style.css` cũ (server không gửi `Cache-Control` → trình duyệt tự giữ hàng giờ), ghép với HTML mới | Middleware gửi `Cache-Control: no-cache` cho trang + `/static/*`; link CSS/JS có `?v=N` — **tăng N mỗi khi sửa CSS/JS** (cả trong `sw.js`). Người đã bị thì bấm Ctrl+F5 |
 | Thư bảo mật **thật** của Google (tiếng Việt) bị chấm lừa đảo 0.6 | (1) Mô hình email tiếng Anh cắt vụn tiếng Việt có dấu ("chúng" → "ch","ng") thành mảnh trùng từ tiếng Anh, vượt ngưỡng 12 từ → 98%; (2) link `accounts.google.com/...?Email=a@b` bị luật trang web coi là lạ (có `@`, "account"); (3) chữ "Cảnh báo" | `text_ml.is_vietnamese` bỏ qua văn bản ≥10% từ có dấu; link về tên miền chính chủ không xét; người gửi chính chủ + link sạch → bỏ qua từ khóa nội dung. `CACHE_VERSION` → v3. Thư giả (người gửi đúng nhưng link lạ, hoặc tên miền nhái) vẫn bị bắt — có test |
 | Web phim lậu vẫn bật tab quảng cáo (yo88.town) | Chỉ chặn theo danh sách 42 mạng quảng cáo; mạng lạ lọt. Trang thử cũng chỉ dùng mạng có trong danh sách nên test không thấy | Thêm phát hiện theo hành vi (`popunder.ts`) + luật `utm_medium=popunder`; test e2e dùng mạng **không** có trong danh sách |
+| `chrome://extensions` báo lỗi "Cannot read properties of undefined (reading 'local')" ở `gmail.js` | Bấm Reload extension khi tab Gmail đang mở: script cũ trên tab mất kết nối (`chrome.storage` = undefined) nhưng vẫn chạy theo MutationObserver | `gmail.ts` kiểm tra `chrome.runtime?.id`, mất kết nối thì tự dừng. **Sau khi Reload extension, F5 các tab đang mở** |
+| Tự bấm banner quảng cáo trên web phim lậu → vào net88.forum, không cảnh báo | Bấm vào link thật nên phần "tab tự bật" (cố ý) bỏ qua; luật `utm_medium` chỉ khớp đúng `popup` | `POP_MARKER` khớp `…_popup_…`; backend thêm luật trang cờ bạc (banner cam). `CACHE_VERSION` → v4 |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
 
 ---

@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 from .domains import is_ip, is_lan_host
 from .schemas import AnalyzeRequest, AnalyzeResponse, Signal
@@ -70,6 +71,28 @@ LURE_WORDS = [
     "confirm", "recover", "unlock", "xacminh", "xacthuc", "dangnhap", "baomat",
     "khoataikhoan",
 ]
+
+# Trang cờ bạc / cá cược trực tuyến (bất hợp pháp ở VN, hay lừa nạp tiền) — đích của quảng cáo trên
+# web phim lậu (vd "NET88 - Nhà cái uy tín, Thể thao, Casino, Nổ hũ, Tài xỉu"). So trên chữ đã bỏ dấu.
+# Chỉ dùng từ quảng cáo của nhà cái; không dùng "đánh bạc" để bài báo về triệt phá cờ bạc không bị bắt.
+GAMBLING_WORDS = {  # chữ đã bỏ dấu -> chữ hiển thị trong lý do
+    "nha cai": "nhà cái", "ca cuoc": "cá cược", "ca do": "cá độ", "casino": "casino", "no hu": "nổ hũ",
+    "tai xiu": "tài xỉu", "game bai": "game bài", "ban ca": "bắn cá", "xoc dia": "xóc đĩa", "lo de": "lô đề",
+    "baccarat": "baccarat", "roulette": "roulette", "sportsbook": "sportsbook", "slot game": "slot game",
+}
+GAMBLING_RE = re.compile(r"\b(" + "|".join(GAMBLING_WORDS) + r")\b")
+
+
+def strip_accents(text: str) -> str:
+    text = unicodedata.normalize("NFD", text.lower()).replace("đ", "d")
+    return "".join(c for c in text if unicodedata.category(c) != "Mn")
+
+
+def gambling_words(title: str, text: str) -> tuple[set[str], set[str]]:
+    """Từ khóa cờ bạc khác nhau trong tiêu đề, và trong cả tiêu đề + nội dung."""
+    in_title = set(GAMBLING_RE.findall(strip_accents(title)))
+    return in_title, in_title | set(GAMBLING_RE.findall(strip_accents(text)))
+
 
 # Đổi chữ số giả chữ cái về chữ (faceb00k -> facebook, paypa1 -> paypal).
 LEET = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t"})
@@ -160,6 +183,12 @@ def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
             t.add(0.2, "Đuôi tên miền thường bị dùng cho trang lừa đảo.")
         if any(w in t for t in tokens for w in LURE_WORDS):
             t.add(0.2, "Tên miền chứa từ ngữ dụ đăng nhập/xác minh.")
+
+    # Nội dung: trang cờ bạc (≥ 2 từ khóa trong tiêu đề, hoặc ≥ 3 trong tiêu đề + chữ trên trang).
+    in_title, in_page = gambling_words(req.title, req.text_snippet)
+    if len(in_title) >= 2 or len(in_page) >= 3:
+        t.add(0.35, "Trang cờ bạc / cá cược trực tuyến (bất hợp pháp tại Việt Nam, hay lừa nạp tiền): "
+                    + ", ".join(GAMBLING_WORDS[w] for w in sorted(in_page)[:4]) + ".")
 
     score = t.score
     verdict = verdict_of(score)

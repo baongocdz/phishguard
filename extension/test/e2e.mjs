@@ -226,8 +226,22 @@ await test("Cửa sổ đăng nhập (window.open có kích thước) → không
 
 await test("URL tự khai utm_medium=popunder (như yo88) → chặn", async () => {
   await page.goto(`${SAFE}/clean.html?a=1&utm_source=nanaproorg&utm_medium=popunder&utm_campaign=cpd`).catch(() => {});
-  await waitFor(() => page.url().includes("blocked.html#pop"), 8000);
+  await waitFor(() => page.url().includes("blocked.html#mk"), 8000);
   return decodeURIComponent(new URL(page.url()).hash).slice(0, 60);
+});
+
+await test("Bấm banner quảng cáo utm_medium=banner_popup_400x400 (như net88) → cảnh báo", async () => {
+  await page.goto(`${SAFE}/clean.html?a=0a4d&utm_campaign=cpd&utm_source=phim_x&utm_medium=banner_popup_400x400`).catch(() => {});
+  await waitFor(() => page.url().includes("blocked.html#mk"), 8000);
+  await waitFor(() => page.$eval("#title", (e) => /quảng cáo bật lên/.test(e.textContent)).catch(() => false), 5000);
+  return page.$eval("#title", (e) => e.textContent.trim());
+});
+
+await test("utm_medium bình thường (popular, email) → không chặn", async () => {
+  await page.goto(`${SAFE}/clean.html?utm_medium=popular&utm_source=newsletter`).catch(() => {});
+  await sleep(800);
+  if (page.url().includes("blocked.html")) throw new Error("bị chặn nhầm");
+  return new URL(page.url()).search;
 });
 
 await test("Link thường (vnexpress) không bị chặn", async () => {

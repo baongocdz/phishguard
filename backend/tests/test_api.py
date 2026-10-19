@@ -495,3 +495,24 @@ def test_community_reports_cannot_hurt_official_brand():
                headers={"X-Forwarded-For": ip})
     r = c.post("/analyze", json=payload("https://www.paypal.com/", "www.paypal.com")).json()
     assert r["verdict"] == "safe"
+
+
+# ---------------- Trang cờ bạc (đích quảng cáo trên web phim lậu) ----------------
+def _page(host, title, text=""):
+    return run_heuristics(AnalyzeRequest(url=f"https://{host}/", hostname=host, protocol="https:",
+                                         title=title, text_snippet=text))
+
+
+def test_gambling_landing_page_is_flagged():
+    r = _page("net88.forum", "NET88 - Nhà cái uy tín, Thể thao, Casino, Nổ hũ, Tài xỉu")
+    assert r.verdict != "safe"
+    assert any("cờ bạc" in x for x in r.reasons)
+
+
+@pytest.mark.parametrize("title", [
+    "Triệt phá đường dây cá độ bóng đá qua mạng",  # bài báo: chỉ 1 từ khóa
+    "Lịch thi đấu bóng đá hôm nay",
+    "Casino Royale (2006) - Vietsub",  # tên phim
+])
+def test_news_and_normal_titles_are_not_gambling(title):
+    assert not any("cờ bạc" in x for x in _page("tin-tuc-abc.com", title).reasons)

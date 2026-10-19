@@ -18,7 +18,7 @@ log = logging.getLogger("phishguard.service")
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 # Tăng khi đổi cách chấm hoặc định dạng kết quả để bỏ qua kết quả cũ trong cache
 # (v2: có breakdown, tên miền na ná, Safe Browsing, mạng nội bộ).
-CACHE_VERSION = "v3"
+CACHE_VERSION = "v4"
 
 
 OFFICIAL_DOMAINS = sorted({d for domains in BRANDS.values() for d in domains})
