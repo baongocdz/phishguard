@@ -1,3 +1,4 @@
+import brandData from "./brands.json";
 import { API_BASE, API_TIMEOUT_MS, EMAIL_TIMEOUT_MS } from "./config";
 import type { AnalysisResult, EmailInfo, PageInfo, ReportInfo } from "./types";
 
@@ -13,35 +14,11 @@ export function isLanHost(hostname: string): boolean {
   return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
 }
 
-// Giữ đồng bộ với BRANDS / SUSPICIOUS_TLDS / LURE_WORDS trong backend/app/heuristics.py.
-const BRANDS: Record<string, string[]> = {
-  paypal: ["paypal.com"],
-  apple: ["apple.com", "icloud.com"],
-  icloud: ["icloud.com", "apple.com"],
-  microsoft: ["microsoft.com", "microsoftonline.com", "live.com", "office.com"],
-  office365: ["office365.com", "office.com", "microsoft.com"],
-  outlook: ["outlook.com", "live.com", "office.com", "office365.com"],
-  google: ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle"],
-  gmail: ["gmail.com", "google.com"],
-  facebook: ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
-  instagram: ["instagram.com"],
-  netflix: ["netflix.com"],
-  amazon: ["amazon.com", "amazonaws.com", "amazon.co.jp", "amazon.de"],
-  github: ["github.com", "github.io"],
-  binance: ["binance.com"],
-  zalo: ["zalo.me", "zaloapp.com"],
-  shopee: ["shopee.vn"],
-  lazada: ["lazada.vn", "lazada.co.th", "lazada.com.my", "lazada.sg", "lazada.co.id", "lazada.com.ph"],
-  vietcombank: ["vietcombank.com.vn"],
-  techcombank: ["techcombank.com", "techcombank.com.vn"],
-  vietinbank: ["vietinbank.vn"],
-  agribank: ["agribank.com.vn"],
-  bidv: ["bidv.com.vn"],
-  mbbank: ["mbbank.com.vn"],
-  tpbank: ["tpb.vn", "tpbank.vn"],
-  sacombank: ["sacombank.com.vn"],
-  momo: ["momo.vn"],
-};
+// Danh sách thương hiệu sinh từ backend/app/heuristics.py (python -m scripts.export_brands): một nguồn duy nhất.
+// SUSPICIOUS_TLDS / LURE_WORDS bên dưới vẫn giữ đồng bộ tay với heuristics.py.
+const BRANDS: Record<string, string[]> = brandData.brands;
+const USER_CONTENT: string[] = brandData.userContent;
+const BRAND_SUFFIXES: string[] = brandData.brandSuffixes;
 
 const SUSPICIOUS_TLDS = new Set([
   "top", "xyz", "click", "icu", "buzz", "cyou", "rest", "monster", "sbs", "cfd",
@@ -64,9 +41,17 @@ function tokens(host: string): string[] {
     .map((t) => t.replace(/[013457]/g, (c) => LEET[c]));
 }
 
-/** Tên miền chính thức của một thương hiệu trong BRANDS (accounts.google.com, momo.vn...). */
-export function isOfficialBrandHost(host: string): boolean {
-  return Object.values(BRANDS).some((domains) => isOfficial(host, domains));
+/** Tên miền chính chủ ĐÁNG TIN: thuộc một thương hiệu và không phải nơi người dùng tự đăng nội dung
+ * (sites.google.com, github.io, *.amazonaws.com... kẻ gian dựng trang lừa đảo ở đó được). */
+export function isTrustedHost(host: string): boolean {
+  return Object.values(BRANDS).some((domains) => isOfficial(host, domains)) && !isOfficial(host, USER_CONTENT);
+}
+
+/** Cụm tên miền "chứa" thương hiệu: 'paypalhelp', 'appleid', 'zalopay' có; 'pineapple', 'zalora', 'applebees' không. */
+function brandInToken(token: string, brand: string): boolean {
+  if (!token.startsWith(brand)) return false;
+  const rest = token.slice(brand.length);
+  return brand.length >= brandData.shortBrand || !rest || /^\d+$/.test(rest) || BRAND_SUFFIXES.some((x) => rest.startsWith(x));
 }
 
 function isOfficial(host: string, domains: string[]): boolean {
@@ -144,7 +129,7 @@ export async function analyzeLocal(info: Pick<PageInfo, "url" | "hostname" | "pr
     const parts = tokens(host);
     // Chỉ khớp khi thương hiệu đứng đầu một cụm: "pineapple" không bị coi là "apple".
     const brand = Object.keys(BRANDS).find(
-      (b) => parts.some((t) => t.startsWith(b)) && !isOfficial(host, BRANDS[b]),
+      (b) => parts.some((t) => brandInToken(t, b)) && !isOfficial(host, BRANDS[b]),
     );
     const lookalike = brand ? undefined : lookalikeBrand(host, parts);
     if (brand) {

@@ -65,7 +65,7 @@ pip install -r requirements.txt
 copy .env.example .env               # rồi điền PHISHGUARD_MONGO_URI, PHISHGUARD_GEMINI_API_KEY, PHISHGUARD_ADMIN_TOKEN
 python -m scripts.seed               # nạp whitelist/blacklist mẫu
 uvicorn app.main:app --reload --port 8000
-pytest -q                            # 69 test, không cần MongoDB
+pytest -q                            # 139 test, không cần MongoDB
 
 # Đánh giá + huấn luyện lại mô hình
 pip install -r eval/requirements-eval.txt

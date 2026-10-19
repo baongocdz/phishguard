@@ -1,0 +1,246 @@
+{
+  "_note": "Sinh từ backend/app/heuristics.py bằng: python -m scripts.export_brands. Đừng sửa tay.",
+  "brands": {
+    "paypal": [
+      "paypal.com",
+      "paypal.me",
+      "paypalobjects.com",
+      "paypal-community.com"
+    ],
+    "apple": [
+      "apple.com",
+      "icloud.com",
+      "apple.co",
+      "me.com",
+      "itunes.com",
+      "mzstatic.com"
+    ],
+    "icloud": [
+      "icloud.com",
+      "apple.com"
+    ],
+    "microsoft": [
+      "microsoft.com",
+      "microsoftonline.com",
+      "live.com",
+      "office.com",
+      "office365.com",
+      "outlook.com",
+      "microsoft365.com",
+      "aka.ms",
+      "msn.com",
+      "bing.com",
+      "skype.com",
+      "xbox.com",
+      "windows.com",
+      "azure.com"
+    ],
+    "office365": [
+      "office365.com",
+      "office.com",
+      "microsoft.com"
+    ],
+    "outlook": [
+      "outlook.com",
+      "live.com",
+      "office.com",
+      "office365.com"
+    ],
+    "google": [
+      "google.com",
+      "google.com.vn",
+      "googleusercontent.com",
+      "googleblog.com",
+      "c.gle",
+      "g.co",
+      "goo.gle",
+      "googleadservices.com",
+      "googlesyndication.com",
+      "doubleclick.net",
+      "gstatic.com",
+      "googleapis.com",
+      "withgoogle.com",
+      "android.com",
+      "youtube.com",
+      "gmail.com"
+    ],
+    "gmail": [
+      "gmail.com",
+      "google.com"
+    ],
+    "youtube": [
+      "youtube.com",
+      "youtu.be",
+      "ytimg.com",
+      "google.com"
+    ],
+    "facebook": [
+      "facebook.com",
+      "fb.com",
+      "facebook.net",
+      "fbcdn.net",
+      "facebookmail.com",
+      "fb.me",
+      "fb.watch",
+      "messenger.com",
+      "meta.com",
+      "facebookcorewwwi.onion"
+    ],
+    "instagram": [
+      "instagram.com",
+      "ig.me",
+      "cdninstagram.com"
+    ],
+    "netflix": [
+      "netflix.com",
+      "netflix.net",
+      "nflxext.com",
+      "nflximg.net"
+    ],
+    "amazon": [
+      "amazon.com",
+      "amazonaws.com",
+      "amazonses.com",
+      "a.co",
+      "amzn.to",
+      "primevideo.com",
+      "amazon.co.uk",
+      "amazon.de",
+      "amazon.fr",
+      "amazon.it",
+      "amazon.es",
+      "amazon.nl",
+      "amazon.se",
+      "amazon.pl",
+      "amazon.ca",
+      "amazon.com.mx",
+      "amazon.com.br",
+      "amazon.in",
+      "amazon.co.jp",
+      "amazon.com.au",
+      "amazon.sg",
+      "amazon.ae",
+      "amazon.sa",
+      "amazon.com.tr"
+    ],
+    "github": [
+      "github.com",
+      "github.io",
+      "githubusercontent.com",
+      "githubassets.com"
+    ],
+    "binance": [
+      "binance.com"
+    ],
+    "zalo": [
+      "zalo.me",
+      "zaloapp.com",
+      "zalopay.vn",
+      "zadn.vn",
+      "zdn.vn"
+    ],
+    "shopee": [
+      "shopee.vn",
+      "shopee.com",
+      "shp.ee",
+      "shope.ee",
+      "shopeefood.vn",
+      "shopeepay.vn",
+      "shopeemobile.com",
+      "spx.vn"
+    ],
+    "lazada": [
+      "lazada.vn",
+      "lazada.com",
+      "lzd.co",
+      "lazada.co.th",
+      "lazada.com.my",
+      "lazada.sg",
+      "lazada.co.id",
+      "lazada.com.ph"
+    ],
+    "vietcombank": [
+      "vietcombank.com.vn"
+    ],
+    "techcombank": [
+      "techcombank.com",
+      "techcombank.com.vn"
+    ],
+    "vietinbank": [
+      "vietinbank.vn"
+    ],
+    "agribank": [
+      "agribank.com.vn"
+    ],
+    "bidv": [
+      "bidv.com.vn"
+    ],
+    "mbbank": [
+      "mbbank.com.vn"
+    ],
+    "tpbank": [
+      "tpb.vn",
+      "tpbank.vn"
+    ],
+    "sacombank": [
+      "sacombank.com",
+      "sacombank.com.vn"
+    ],
+    "momo": [
+      "momo.vn"
+    ]
+  },
+  "userContent": [
+    "sites.google.com",
+    "docs.google.com",
+    "drive.google.com",
+    "script.google.com",
+    "googleusercontent.com",
+    "storage.googleapis.com",
+    "firebasestorage.googleapis.com",
+    "github.io",
+    "githubusercontent.com",
+    "gist.github.com",
+    "amazonaws.com",
+    "sharepoint.com",
+    "onmicrosoft.com",
+    "paypal.me"
+  ],
+  "shortBrand": 6,
+  "brandSuffixes": [
+    "id",
+    "pay",
+    "support",
+    "care",
+    "help",
+    "hotro",
+    "cskh",
+    "login",
+    "signin",
+    "secure",
+    "security",
+    "verify",
+    "xacminh",
+    "xacthuc",
+    "account",
+    "online",
+    "service",
+    "team",
+    "store",
+    "app",
+    "vn",
+    "bank",
+    "card",
+    "wallet",
+    "update",
+    "official",
+    "vip",
+    "khuyenmai",
+    "uudai",
+    "qua",
+    "gift",
+    "reward",
+    "hoantien",
+    "refund"
+  ]
+}

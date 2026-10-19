@@ -114,6 +114,29 @@ nhưng con số đó vô nghĩa khi gặp link thật.
 
 ---
 
+## 3b. Bộ mẫu kiểm tra báo nhầm (`backend/tests/test_corpus.py`)
+
+Hai bộ dữ liệu trên không có email/tên miền **thật của Việt Nam** và không có cách các hãng gửi thư (tên miền gửi
+riêng, link rút gọn riêng, link qua dịch vụ gửi thư). Sau một ca báo nhầm thật (thư Google dùng link `c.gle`), em dựng
+một bộ mẫu theo đúng cách các hãng gửi thư, gồm cả biến thể lừa đảo tương ứng, và chạy như test tự động:
+
+| | Số ca | Trước khi sửa | Sau khi sửa |
+|---|---|---|---|
+| Email hợp lệ (Facebook, Microsoft, Apple, Google, Shopee, Lazada, ZaloPay, ngân hàng, bản tin qua SendGrid/Mailchimp/SES, thầy cô gửi qua Outlook / Google Forms...) | 22 | **12 bị báo nhầm** | 0 |
+| Tên miền hợp lệ (zalora.com.vn, applebees.com, shopeefood.vn, googleadservices.com, tdmu.edu.vn...) | 23 | **14 bị báo nhầm** | 0 |
+| Email lừa đảo (giả người gửi, Google Forms/Sites, SharePoint, tenant onmicrosoft.com, mượn trang chuyển hướng của Google...) | 13 | bắt đủ | bắt đủ |
+| Tên miền lừa đảo | 10 | bắt đủ | bắt đủ |
+
+Nguyên nhân và cách sửa: thiếu tên miền chính chủ (vd Facebook gửi từ `facebookmail.com`); tên thương hiệu ngắn
+khớp quá rộng (`zalora` bị coi là `zalo`); link theo dõi của dịch vụ gửi thư bị coi là "chữ hiển thị khác link thật";
+và ngược lại, phải **không tin** nơi người dùng tự đăng nội dung trên tên miền hãng lớn (Google Sites/Docs, GitHub
+Pages, S3, SharePoint) vì kẻ gian dựng trang lừa đảo ở đó.
+
+**Lưu ý khi trình bày:** đây là bộ mẫu do em dựng (68 ca), dùng để **phát hiện và chống tái phát** lỗi báo nhầm,
+không phải bộ đánh giá độc lập như PhiUSIIL.
+
+---
+
 ## 4. Nguồn dữ liệu khác (không dùng để huấn luyện)
 
 | Nguồn | Dùng làm gì | Ghi chú |

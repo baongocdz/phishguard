@@ -95,6 +95,8 @@ def test_rejects_bad_payload():
 
 
 # ---------------- Tuần 6: tích hợp Gemini (dùng Gemini giả) ----------------
+import asyncio
+
 import pytest
 
 from app import gemini_client, service
@@ -558,3 +560,31 @@ def test_google_open_redirect_to_phishing_is_still_flagged():
                          href="https://www.google.com/url?q=https://g00gle-verify-account.top/login&sa=D")]))
     assert r.verdict != "safe"
     assert any("g00gle-verify-account.top" in x for x in r.reasons)
+
+
+def test_tracker_link_expands_without_visiting_destination(monkeypatch):
+    """Link theo dõi trong bản tin (có thể là 'Hủy đăng ký'): lấy địa chỉ đích nhưng KHÔNG gửi yêu cầu tới đó."""
+    import httpx
+    from app import shortlinks
+    visited = []
+
+    def handler(request):
+        visited.append(str(request.url))
+        if request.url.host.endswith("sendgrid.net"):
+            return httpx.Response(302, headers={"location": "https://shop.example.vn/unsubscribe?token=1"})
+        return httpx.Response(200)
+
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(shortlinks.httpx, "AsyncClient",
+                        lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
+    target = asyncio.run(shortlinks.expand("https://u1.ct.sendgrid.net/ls/click?upn=x", stop_at_destination=True))
+    assert target == "https://shop.example.vn/unsubscribe?token=1"
+    assert not any("shop.example.vn" in v for v in visited)
+
+
+def test_brands_json_matches_backend():
+    """Extension dùng extension/src/brands.json; phải giống heuristics.py (chạy python -m scripts.export_brands)."""
+    import json
+    from pathlib import Path
+    from scripts.export_brands import OUT, data
+    assert json.loads(Path(OUT).read_text(encoding="utf-8")) == json.loads(json.dumps(data()))

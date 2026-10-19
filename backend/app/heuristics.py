@@ -31,23 +31,38 @@ class Tally:
 # không thuộc tên miền chính thức thì nhiều khả năng là giả mạo.
 # Giữ đồng bộ với BRANDS trong extension/src/analyzer.ts.
 BRANDS: dict[str, list[str]] = {
-    "paypal": ["paypal.com"],
-    "apple": ["apple.com", "icloud.com"],
+    "paypal": ["paypal.com", "paypal.me", "paypalobjects.com", "paypal-community.com"],
+    # Apple gửi thư từ email.apple.com, id.apple.com, insideapple.apple.com (đều thuộc apple.com); apple.co là link rút gọn.
+    "apple": ["apple.com", "icloud.com", "apple.co", "me.com", "itunes.com", "mzstatic.com"],
     "icloud": ["icloud.com", "apple.com"],
-    "microsoft": ["microsoft.com", "microsoftonline.com", "live.com", "office.com"],
+    # Cảnh báo bảo mật gửi từ accountprotection.microsoft.com; aka.ms là link rút gọn của Microsoft.
+    "microsoft": ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "office365.com", "outlook.com",
+                  "microsoft365.com", "aka.ms", "msn.com", "bing.com", "skype.com", "xbox.com", "windows.com",
+                  "azure.com"],
     "office365": ["office365.com", "office.com", "microsoft.com"],
     "outlook": ["outlook.com", "live.com", "office.com", "office365.com"],
-    "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle"],
+    # .gle là đuôi riêng của Google: c.gle, goo.gle (link rút gọn trong thư của Google), g.co.
+    "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle",
+               "googleadservices.com", "googlesyndication.com", "doubleclick.net", "gstatic.com", "googleapis.com",
+               "withgoogle.com", "android.com", "youtube.com", "gmail.com"],
     "gmail": ["gmail.com", "google.com"],
-    "facebook": ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
-    "instagram": ["instagram.com"],
-    "netflix": ["netflix.com"],
-    "amazon": ["amazon.com", "amazonaws.com", "amazon.co.jp", "amazon.de"],
-    "github": ["github.com", "github.io"],
+    "youtube": ["youtube.com", "youtu.be", "ytimg.com", "google.com"],
+    # Facebook gửi thông báo từ facebookmail.com (cả em.facebookmail.com); fb.me, fb.watch là link rút gọn.
+    "facebook": ["facebook.com", "fb.com", "facebook.net", "fbcdn.net", "facebookmail.com", "fb.me", "fb.watch",
+                 "messenger.com", "meta.com", "facebookcorewwwi.onion"],
+    "instagram": ["instagram.com", "ig.me", "cdninstagram.com"],
+    "netflix": ["netflix.com", "netflix.net", "nflxext.com", "nflximg.net"],
+    "amazon": ["amazon.com", "amazonaws.com", "amazonses.com", "a.co", "amzn.to", "primevideo.com",
+               "amazon.co.uk", "amazon.de", "amazon.fr", "amazon.it", "amazon.es", "amazon.nl", "amazon.se",
+               "amazon.pl", "amazon.ca", "amazon.com.mx", "amazon.com.br", "amazon.in", "amazon.co.jp",
+               "amazon.com.au", "amazon.sg", "amazon.ae", "amazon.sa", "amazon.com.tr"],
+    "github": ["github.com", "github.io", "githubusercontent.com", "githubassets.com"],
     "binance": ["binance.com"],
-    "zalo": ["zalo.me", "zaloapp.com"],
-    "shopee": ["shopee.vn"],
-    "lazada": ["lazada.vn", "lazada.co.th", "lazada.com.my", "lazada.sg", "lazada.co.id", "lazada.com.ph"],
+    "zalo": ["zalo.me", "zaloapp.com", "zalopay.vn", "zadn.vn", "zdn.vn"],
+    "shopee": ["shopee.vn", "shopee.com", "shp.ee", "shope.ee", "shopeefood.vn", "shopeepay.vn",
+               "shopeemobile.com", "spx.vn"],
+    "lazada": ["lazada.vn", "lazada.com", "lzd.co", "lazada.co.th", "lazada.com.my", "lazada.sg", "lazada.co.id",
+               "lazada.com.ph"],
     "vietcombank": ["vietcombank.com.vn"],
     "techcombank": ["techcombank.com", "techcombank.com.vn"],
     "vietinbank": ["vietinbank.vn"],
@@ -55,9 +70,26 @@ BRANDS: dict[str, list[str]] = {
     "bidv": ["bidv.com.vn"],
     "mbbank": ["mbbank.com.vn"],
     "tpbank": ["tpb.vn", "tpbank.vn"],
-    "sacombank": ["sacombank.com.vn"],
+    "sacombank": ["sacombank.com", "sacombank.com.vn"],
     "momo": ["momo.vn"],
 }
+
+# Thuộc hãng lớn nhưng NỘI DUNG DO NGƯỜI DÙNG TỰ TẠO: ai cũng dựng được trang lừa đảo trên đó (Google Sites/Forms,
+# GitHub Pages, S3, SharePoint, tenant *.onmicrosoft.com...). Không được tin như tên miền chính chủ.
+USER_CONTENT = [
+    "sites.google.com", "docs.google.com", "drive.google.com", "script.google.com", "googleusercontent.com",
+    "storage.googleapis.com", "firebasestorage.googleapis.com", "github.io", "githubusercontent.com",
+    "gist.github.com", "amazonaws.com", "sharepoint.com", "onmicrosoft.com", "paypal.me",
+]
+
+# Tên thương hiệu ngắn (apple, zalo, momo...) chỉ coi là "chứa thương hiệu" khi đứng một mình hoặc ghép với đuôi
+# kẻ gian hay dùng (appleid, zalopay, momo-hotro...). Nếu không, zalora.com.vn / applebees.com bị bắt nhầm.
+SHORT_BRAND = 6
+BRAND_SUFFIXES = (
+    "id", "pay", "support", "care", "help", "hotro", "cskh", "login", "signin", "secure", "security", "verify",
+    "xacminh", "xacthuc", "account", "online", "service", "team", "store", "app", "vn", "bank", "card", "wallet",
+    "update", "official", "vip", "khuyenmai", "uudai", "qua", "gift", "reward", "hoantien", "refund",
+)
 
 # Đuôi tên miền rẻ/miễn phí, thường bị dùng cho trang lừa đảo.
 SUSPICIOUS_TLDS = {
@@ -143,6 +175,25 @@ def _is_official(host: str, domains: list[str]) -> bool:
     return any(host == d or host.endswith("." + d) for d in domains)
 
 
+ALL_OFFICIAL = sorted({d for domains in BRANDS.values() for d in domains})
+
+
+def is_trusted_host(host: str) -> bool:
+    """Tên miền chính chủ của một thương hiệu VÀ không phải nơi người dùng tự đăng nội dung.
+    Dùng khi TIN một tên miền (bỏ qua luật link email, học máy, báo cáo cộng đồng)."""
+    host = host.lower().rstrip(".")
+    return _is_official(host, ALL_OFFICIAL) and not _is_official(host, USER_CONTENT)
+
+
+def brand_in_token(token: str, brand: str) -> bool:
+    """Cụm tên miền có "chứa" thương hiệu không: 'paypal-verify', 'paypalhelp', 'appleid', 'zalopay' có;
+    'pineapple', 'zalora', 'applebees' không (xem SHORT_BRAND)."""
+    if not token.startswith(brand):
+        return False
+    rest = token[len(brand):]
+    return len(brand) >= SHORT_BRAND or not rest or rest.isdigit() or rest.startswith(BRAND_SUFFIXES)
+
+
 def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
     """Bản Python của luật ở Extension. Luật chưa chắc chắn thì service.py
     hỏi thêm Gemini."""
@@ -172,7 +223,7 @@ def run_heuristics(req: AnalyzeRequest) -> AnalyzeResponse:
         # khớp, còn "pineapple" thì không bị coi là "apple".
         brand = next(
             (b for b, official in BRANDS.items()
-             if any(t.startswith(b) for t in tokens) and not _is_official(host, official)),
+             if any(brand_in_token(t, b) for t in tokens) and not _is_official(host, official)),
             None,
         )
         if brand:

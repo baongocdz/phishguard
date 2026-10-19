@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
@@ -8,9 +9,9 @@ from . import gemini_client
 from .config import settings
 from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
-from .email_rules import _domain_of, is_official_and_clean, run_email_rules
+from .email_rules import DOMAIN_IN_TEXT, _domain_of, is_official_and_clean, run_email_rules
 from . import domain_age, ml, safebrowsing, shortlinks, text_ml
-from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
+from .heuristics import is_trusted_host, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
 log = logging.getLogger("phishguard.service")
@@ -21,7 +22,9 @@ SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 CACHE_VERSION = "v5"
 
 
-OFFICIAL_DOMAINS = sorted({d for domains in BRANDS.values() for d in domains})
+# Đuôi chỉ cơ quan nhà nước / trường học mới đăng ký được (VNNIC cấp có kiểm tra): mô hình học máy học từ tên miền
+# quốc tế nên dễ chấm nhầm (tdmu.edu.vn, dichvucong.gov.vn) → không cộng điểm học máy. Luật vẫn chạy bình thường.
+RESTRICTED_SUFFIX = re.compile(r"\.(gov|edu|ac|mil|int)(\.[a-z]{2})?$")
 
 
 def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
@@ -29,7 +32,7 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     Bỏ qua tên miền chính chủ của các thương hiệu: chính vì hay bị giả mạo nên
     mô hình dễ chấm nhầm tên miền thật (vd shopee.vn)."""
     host = req.hostname.lower()
-    if _is_official(host, OFFICIAL_DOMAINS):
+    if is_trusted_host(host) or RESTRICTED_SUFFIX.search(host):
         return result
     prob = ml.predict(host)
     score = ml.combine(result.score, prob)
@@ -44,7 +47,7 @@ def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
 async def apply_domain_age(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     """Tên miền mới đăng ký thì cộng điểm (xem app/domain_age.py). Bỏ qua khi đã chắc là
     lừa đảo (đỡ một lượt tra cứu) hoặc là tên miền chính chủ của thương hiệu."""
-    if result.score >= 0.6 or _is_official(req.hostname.lower(), OFFICIAL_DOMAINS):
+    if result.score >= 0.6 or is_trusted_host(req.hostname):
         return result
     # Chỉ tra khi đáng tra: người dùng chủ động kiểm tra (dán link, quét QR), trang có
     # form/mật khẩu, hoặc đã có dấu hiệu nghi ngờ. Trang đọc báo bình thường thì bỏ qua.
@@ -214,10 +217,17 @@ async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
         result.source = "cache"
         return result
 
-    # Mở tối đa 3 link rút gọn trong email/tin nhắn để luật xét đích thật.
-    short = [i for i, l in enumerate(req.links) if shortlinks.is_shortener(urlsplit(l.href).hostname or "")][:3]
-    if short:
-        targets = await asyncio.gather(*(shortlinks.expand(req.links[i].href) for i in short))
+    # Mở tối đa 3 link rút gọn, và tối đa 3 link theo dõi của dịch vụ gửi thư mà chữ hiển thị là một tên miền
+    # (chỉ khi đó mới cần đích thật để so "hiển thị khác thật"; link theo dõi thì không gửi yêu cầu tới trang đích).
+    def host_of(link):
+        return urlsplit(link.href).hostname or ""
+    short = [i for i, l in enumerate(req.links) if shortlinks.is_shortener(host_of(l))][:3]
+    tracked = [i for i, l in enumerate(req.links)
+               if shortlinks.is_tracker(host_of(l)) and DOMAIN_IN_TEXT.search(l.text.lower())][:3]
+    if short or tracked:
+        targets = await asyncio.gather(*(shortlinks.expand(req.links[i].href) for i in short),
+                                       *(shortlinks.expand(req.links[i].href, stop_at_destination=True) for i in tracked))
+        short = short + tracked
         links = list(req.links)
         for i, target in zip(short, targets):
             if target:
@@ -303,7 +313,7 @@ async def save_report(db, req: ReportRequest, ip: str = "") -> None:
 
 def apply_community(req: AnalyzeRequest, result: AnalyzeResponse, reporters: int) -> AnalyzeResponse:
     """Nhiều người khác nhau báo lừa đảo thì cộng +0.3 (một mình không đủ kết luận lừa đảo)."""
-    if reporters < settings.report_threshold or _is_official(req.hostname.lower(), OFFICIAL_DOMAINS):
+    if reporters < settings.report_threshold or is_trusted_host(req.hostname):
         return result
     score = min(1.0, round(result.score + 0.3, 2))
     reason = f"{reporters} người dùng khác nhau đã báo trang này là lừa đảo."

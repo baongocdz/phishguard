@@ -1,10 +1,12 @@
 """Luật phát hiện email lừa đảo. Chạy trước Gemini, giống run_heuristics cho trang web."""
 import re
 import unicodedata
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from .domains import registrable_domain
-from .heuristics import BRANDS, Tally, _is_official, _tokens, run_heuristics, verdict_of
+from .heuristics import (BRANDS, USER_CONTENT, Tally, _is_official, _tokens, brand_in_token, is_trusted_host,
+                         run_heuristics, verdict_of)
+from .shortlinks import is_tracker
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest
 
 EMAIL_RE = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
@@ -56,23 +58,30 @@ def is_official_and_clean(result: AnalyzeResponse) -> bool:
 
 
 def _official_host(host: str) -> bool:
-    """Tên miền chính thức của một thương hiệu trong BRANDS (google.com, vietcombank.com.vn...)."""
-    return any(_is_official(host, official) for official in BRANDS.values())
+    """Tên miền chính chủ ĐÁNG TIN (google.com, vietcombank.com.vn...), không gồm nơi người dùng tự đăng nội dung
+    (sites.google.com, github.io, *.amazonaws.com...: kẻ gian dựng trang lừa đảo ở đó được)."""
+    return is_trusted_host(host)
+
+
+EMBEDDED_URL = re.compile(r"https?://[^\s\"'<>]+", re.I)
 
 
 def _real_target(href: str) -> str:
-    """Link chính chủ mà mang theo địa chỉ đích KHÔNG chính chủ (google.com/url?q=https://lua-dao...: kẻ gian
-    hay mượn trang chuyển hướng của Google) thì xét địa chỉ đích đó."""
-    if not _official_host(_host(href)):
+    """Link chính chủ / link theo dõi mà mang theo địa chỉ đích (google.com/url?q=https://..., l.facebook.com/l.php?u=,
+    Outlook SafeLinks ?url=, awstrack.me/L0/https:%2F%2F...) thì xét địa chỉ đích đó. Kẻ gian hay mượn trang chuyển
+    hướng của Google để giấu link lừa đảo."""
+    host = _host(href)
+    if not (_official_host(host) or is_tracker(host)):
         return href
     try:
-        params = parse_qs(urlsplit(href).query)
+        parts = urlsplit(href)
+        candidates = [v for values in parse_qs(parts.query).values() for v in values] + [unquote(parts.path)]
     except ValueError:
         return href
-    for values in params.values():
-        for v in values:
-            if v.lower().startswith(("http://", "https://")) and _host(v) and not _official_host(_host(v)):
-                return v
+    for c in candidates:
+        for m in EMBEDDED_URL.finditer(c):
+            if _host(m.group(0)) and not _official_host(_host(m.group(0))):
+                return m.group(0)
     return href
 
 
@@ -84,7 +93,7 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     # 1. Tên hiển thị mạo danh thương hiệu nhưng gửi từ tên miền khác.
     name_tokens = set(_tokens(_strip_accents(display_name).replace(" ", "-")))
     for brand, official in BRANDS.items():
-        if any(t.startswith(brand) for t in name_tokens) and sender_domain \
+        if any(brand_in_token(t, brand) for t in name_tokens) and sender_domain \
                 and not _is_official(sender_domain, official):
             t.add(0.4, f"Người gửi xưng là '{brand}' nhưng gửi từ tên miền {sender_domain}.")
             break
@@ -105,7 +114,8 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
         # Link về đúng trang chính thức thì không lừa được ai: Google, ngân hàng hay dẫn link qua hệ thống
         # chuyển hướng của chính họ (chữ "tdmu.edu.vn" trỏ tới c.gle của Google), và luật trang web sẽ thấy
         # "@", "account" trong accounts.google.com/...?Email=a@b rồi báo nhầm.
-        if _official_host(href_host):
+        # Link theo dõi của dịch vụ gửi thư mà không mở ra được: không biết đích thật nên không kết luận.
+        if _official_host(href_host) or is_tracker(href_host):
             continue
         shown = DOMAIN_IN_TEXT.search(link.text.lower())
         if mismatch is None and shown and _base(shown.group(1)) != _base(href_host):
@@ -125,8 +135,10 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     # 4. Nội dung: hối thúc, đòi thông tin nhạy cảm, mồi trúng thưởng.
     #    Thư từ tên miền chính thức mà link đều sạch (thông báo bảo mật của Google, ngân hàng)
     #    thì chữ "cảnh báo", "OTP" là bình thường, không cộng điểm. Thư giả mạo người gửi mà
-    #    kèm link lạ vẫn bị bắt ở bước 3.
-    if sender_domain and _official_host(sender_domain) and not t.score:
+    #    kèm link lạ vẫn bị bắt ở bước 3. Có link tới nơi người dùng tự đăng nội dung (Google Sites/Docs, GitHub
+    #    Pages...) thì không tin luôn: chia sẻ Google Docs chứa link lừa đảo là chiêu thật hay gặp.
+    user_content = any(_is_official(_host(link.href), USER_CONTENT) for link in req.links)
+    if sender_domain and _official_host(sender_domain) and not t.score and not user_content:
         t.add(0.0, f"{OFFICIAL_SENDER_NOTE} ({sender_domain}), người gửi và link không có dấu hiệu giả mạo.")
         return AnalyzeResponse(verdict="safe", score=0.0, reasons=t.reasons, source="email",
                                breakdown=t.signals)

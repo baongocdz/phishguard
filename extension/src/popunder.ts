@@ -7,7 +7,7 @@
 // hình) thì đó là quảng cáo → đổi sang trang cảnh báo (có "Mở lần này" / "Luôn cho phép").
 // Danh sách trong ad-domains.json vẫn chặn trước được các mạng đã biết; phần này bắt mạng lạ.
 import { AD_DOMAINS, AFFILIATE_DOMAINS, blockedPage } from "./adblock";
-import { isOfficialBrandHost } from "./analyzer";
+import { isTrustedHost } from "./analyzer";
 import type { ClickInfo } from "./types";
 
 // Cửa sổ đăng nhập / thanh toán / chia sẻ hay được mở bằng script: không bao giờ chặn.
@@ -51,7 +51,7 @@ export function isPopunder(sourceUrl: string, targetUrl: string, click: ClickInf
   if (!/^https?:/i.test(targetUrl) || !/^https?:/i.test(sourceUrl) || !target || !source) return false;
   if (siteOf(target) === siteOf(source)) return false; // sang trang cùng web: bình thường
   if (matches(target, [...AD_DOMAINS, ...AFFILIATE_DOMAINS])) return false; // luật danh sách đã lo
-  if (isOfficialBrandHost(target) || matches(target, TRUSTED_POPUP_SITES)) return false;
+  if (isTrustedHost(target) || matches(target, TRUSTED_POPUP_SITES)) return false; // không miễn sites.google.com...
   if (matches(target, allowed) || matches(source, allowed)) return false; // người dùng đã cho phép
   if (!click || now - click.at > windowMs) return false; // không có cú bấm gần đây: không đoán bừa
   if (click.formSubmit) return false; // gửi form sang trang khác (thanh toán, đăng nhập) là bình thường

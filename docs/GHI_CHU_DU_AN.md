@@ -151,7 +151,7 @@ Khóa cache email gồm cả danh sách link.
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc, link chính chủ Google | 69 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc, link chính chủ Google, **bộ mẫu báo nhầm 68 ca** (`tests/test_corpus.py`) | 139 |
 | Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ** + URL `utm_medium=…popup…`), affiliate, "Mở lần này", công tắc, popup, **Gmail giả lập** (cả mở thư khác không F5), **tab-under, cửa sổ nhỏ**, không chặn nhầm Back/form | 29 |
 | Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
@@ -160,7 +160,7 @@ Khóa cache email gồm cả danh sách link.
   Test trình duyệt (e2e, web-test) chỉ chạy ở máy (dùng Chrome for Testing do Puppeteer tải về `~/.cache/puppeteer`).
 - Thêm `HEADFUL=1` trước lệnh e2e/web-test để xem trình duyệt chạy.
 
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **69 test**, không cần MongoDB
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **139 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
   (thêm `--admin <mã>` để thử dashboard; truyền `http://localhost:8000` để thử bản ở máy).
@@ -180,7 +180,7 @@ Khóa cache email gồm cả danh sách link.
 | Đổi backend sang URL khác | `extension/src/config.ts` → `API_BASE`, rồi build lại |
 | Nạp lại whitelist/blacklist mẫu | `cd backend` → `.venv\Scripts\python -m scripts.seed` (chạy lại nhiều lần không trùng) |
 | Thêm tên miền quảng cáo cần chặn | `extension/src/ad-domains.json` → build (quyền host tự sinh trong `build.mjs`) |
-| Thêm thương hiệu hay bị giả mạo | `BRANDS` trong `backend/app/heuristics.py` **và** `extension/src/analyzer.ts` |
+| Thêm thương hiệu / tên miền chính chủ | `BRANDS` (và `USER_CONTENT` nếu là nơi người dùng tự đăng nội dung) trong `backend/app/heuristics.py` → `cd backend` → `.venv\Scripts\python -m scripts.export_brands` (sinh `extension/src/brands.json`) → build extension. Thêm 1 ca vào `tests/test_corpus.py` |
 | Trước khi demo | Mở `<URL Render>/health` trước vài phút (Render free ngủ sau ~15 phút, lần đầu mất 30–50s) |
 
 ---
@@ -207,6 +207,7 @@ Khóa cache email gồm cả danh sách link.
 | Đổi giao diện xong, trên Render thấy icon thành khối đen to, trang vỡ | Trình duyệt giữ `style.css` cũ (server không gửi `Cache-Control` → trình duyệt tự giữ hàng giờ), ghép với HTML mới | Middleware gửi `Cache-Control: no-cache` cho trang + `/static/*`; link CSS/JS có `?v=N` — **tăng N mỗi khi sửa CSS/JS** (cả trong `sw.js`). Người đã bị thì bấm Ctrl+F5 |
 | Thư bảo mật **thật** của Google (tiếng Việt) bị chấm lừa đảo 0.6 | (1) Mô hình email tiếng Anh cắt vụn tiếng Việt có dấu ("chúng" → "ch","ng") thành mảnh trùng từ tiếng Anh, vượt ngưỡng 12 từ → 98%; (2) link `accounts.google.com/...?Email=a@b` bị luật trang web coi là lạ (có `@`, "account"); (3) chữ "Cảnh báo" | `text_ml.is_vietnamese` bỏ qua văn bản ≥10% từ có dấu; link về tên miền chính chủ không xét; người gửi chính chủ + link sạch → bỏ qua từ khóa nội dung. `CACHE_VERSION` → v3. Thư giả (người gửi đúng nhưng link lạ, hoặc tên miền nhái) vẫn bị bắt — có test |
 | Web phim lậu vẫn bật tab quảng cáo (yo88.town) | Chỉ chặn theo danh sách 42 mạng quảng cáo; mạng lạ lọt. Trang thử cũng chỉ dùng mạng có trong danh sách nên test không thấy | Thêm phát hiện theo hành vi (`popunder.ts`) + luật `utm_medium=popunder`; test e2e dùng mạng **không** có trong danh sách |
+| **Rà soát báo nhầm** (sau ca c.gle): bộ mẫu `tests/test_corpus.py` dựng theo cách các hãng thật gửi thư → **12/21 email hợp lệ và 14/23 tên miền hợp lệ bị báo nhầm** (Facebook gửi từ facebookmail.com, apple.co, shp.ee, lzd.co, ZaloPay, Amazon UK, bản tin qua SendGrid/Mailchimp/SES; zalora.com.vn bị coi là giả Zalo, applebees.com giả Apple...) | (1) Thiếu tên miền chính chủ; (2) tên thương hiệu ngắn khớp mọi cụm bắt đầu bằng nó; (3) link theo dõi của dịch vụ gửi thư; (4) ngược lại, bản sửa c.gle tin cả Google Sites/Docs, GitHub Pages, S3 | Bổ sung tên miền theo nguồn (mục 6); tên ngắn < 6 ký tự chỉ khớp khi đứng một mình / ghép đuôi kẻ gian hay dùng (`BRAND_SUFFIXES`); mở link theo dõi (không vào trang đích), đọc địa chỉ đích nằm trong link (`?q=`, `?u=`, SafeLinks `?url=`, awstrack `/L0/https:...`); `USER_CONTENT` không được tin; học máy bỏ qua `.gov.vn/.edu.vn`. Sau sửa: **68/68 ca đúng**, bắt đủ 13/13 email và 10/10 tên miền lừa đảo; extension (luật trên máy) 32/32 |
 | Thư thật của Google "Bạn đã chia sẻ dữ liệu với tdmu.edu.vn" bị báo đáng ngờ 55 | Chữ `tdmu.edu.vn` trỏ tới `c.gle` (link rút gọn của Google) → luật "link hiển thị khác link thật" | Thêm `c.gle`, `g.co`, `goo.gle` vào tên miền chính chủ Google (backend + extension); link về tên miền chính chủ không xét "hiển thị khác thật". Chống lách: link chính chủ mang địa chỉ đích lạ (`google.com/url?q=https://lua-dao…`) thì xét địa chỉ đích (`_real_target`). `CACHE_VERSION` → v5 |
 | Gmail đôi khi kẹt ở "đang kiểm tra" | Extension chờ 8 s, server hỏi Gemini có thể tới 10 s | Email chờ 25 s (`EMAIL_TIMEOUT_MS`); thư chính chủ không hỏi Gemini |
 | Gmail: mở thư khác (không F5) thì không có thanh kết quả | (1) Chờ DOM "đứng yên" 0,8 s mới kiểm tra, nhưng Gmail đổi DOM gần như liên tục → không bao giờ tới; (2) Gmail giữ DOM thư cũ (ẩn) → `querySelector("h2.hP")` lấy nhầm tiêu đề thư cũ | Kiểm tra tối đa mỗi 0,6 s + khi `hashchange`; chỉ dùng tiêu đề/thanh **đang hiển thị**; kết quả về muộn mà người dùng đã sang thư khác thì không gắn nhầm. Test e2e "mở thư 1, quay ra, mở thư 2" (bản cũ hỏng, bản mới đạt) |
@@ -226,7 +227,12 @@ Khóa cache email gồm cả danh sách link.
 - Gmail: phụ thuộc class DOM, Gmail đổi giao diện là phải sửa `src/gmail.ts`. Chưa đọc được Reply-To trong Gmail.
 - Rate limit lưu trong RAM, lấy IP từ `X-Forwarded-For` → người cố tình giả IP vẫn vượt được. Khởi động lại là mất bộ đếm.
 - ML chỉ học từ **tên miền**; dữ liệu hợp lệ của PhiUSIIL ít tên miền Việt Nam.
-- Danh sách quảng cáo và thương hiệu là danh sách tay, cần cập nhật dần.
+- Danh sách quảng cáo và thương hiệu là danh sách tay, cần cập nhật dần. Thương hiệu: một nguồn duy nhất
+  (`heuristics.py` → `brands.json`), mỗi lần thêm nên thêm 1 ca vào `tests/test_corpus.py`.
+- Email có người gửi **giả đúng** tên miền chính chủ + link sạch được tin luôn (dựa vào DMARC của hộp thư).
+  Nếu có link tới Google Sites/Docs, GitHub Pages... thì vẫn cho học máy / Gemini xem.
+- Link theo dõi của dịch vụ gửi thư chỉ mở khi chữ hiển thị là tên miền (tối đa 3), dừng trước trang đích;
+  mở không được thì bỏ qua luật "hiển thị khác thật" cho link đó.
 - Dashboard chỉ có 1 mã quản trị chung, không có tài khoản riêng.
 - Tuổi tên miền không tra được đuôi `.vn` (VNNIC chưa có RDAP).
 - OpenPhish chỉ chặn theo tên máy: trang lừa đảo đặt trên dịch vụ lớn (vd docs.google.com/forms) không chặn được.
@@ -260,6 +266,14 @@ Khóa cache email gồm cả danh sách link.
 
 Tham khảo: Popup Blocker strict (github.com/schomery/popup-blocker), ABPVN (github.com/abpvn/abpvn),
 CyberShield (github.com/Jmie-175/CyberShield), phishdetector-fyp (github.com/itxtalal/phishdetector-fyp).
+
+**Nguồn cho danh sách tên miền chính chủ** (19/10/2026; nhiều nguồn là bài tổng hợp, không phải tài liệu chính
+thức của hãng — hãng không công bố danh sách đầy đủ):
+- Facebook gửi thông báo từ `facebookmail.com` (cả `em.facebookmail.com`), `fb.com`, `meta.com`: stubgroup.com/blog/how-to-spot-fake-facebook-emails, guard.io/blog/is-support-facebook-com-legit-email.
+- Microsoft gửi cảnh báo bảo mật từ `account-security-noreply@accountprotection.microsoft.com`: learn.microsoft.com/en-us/answers/questions/5744207, getmailbird.com/microsoft-security-alert-email-real-or-fake.
+- Apple gửi từ `email.apple.com`, `id.apple.com`, `appleid.apple.com` (đều thuộc apple.com): techradar.com (bài "Your Apple ID is not suspended"), nerdschalk.com/is-appleid-apple-com-legit.
+- `.gle` là đuôi riêng của Google (c.gle, forms.gle, goo.gle), `g.co` là link rút gọn chính thức: urlert.com/domains/c.gle, whoapi.com/blog/gle-domain, urlert.com/domains/g.co.
+- Dịch vụ gửi thư và link theo dõi (SendGrid `ct.sendgrid.net`, Mailchimp `list-manage.com`, Amazon SES `awstrack.me`...): biết từ cấu trúc link trong thư thật.
 
 ## 8. Kịch bản demo 5 phút
 
