@@ -1,7 +1,8 @@
 // Test tự động extension trong Chrome thật (Chrome for Testing, qua Puppeteer).
 // Chạy: npm run build && npm run e2e      (thêm HEADFUL=1 để xem trình duyệt chạy)
 //
-// Không test được tự động: phân tích Gmail (cần đăng nhập) và nút quét QR
+// Gmail được test bằng trang giả lập cấu trúc DOM Gmail tại mail.google.com (chặn request, trả HTML giả).
+// Không test được tự động: nút quét QR
 // (captureVisibleTab cần người dùng bấm vào icon extension).
 import http from "node:http";
 import { readFileSync } from "node:fs";
@@ -261,6 +262,54 @@ await test("Tắt công tắc chặn quảng cáo → không chặn nữa", asyn
   await waitFor(rulesInstalled, 5000);
   if (blocked) throw new Error("vẫn bị chặn khi đã tắt");
   return "không chặn khi tắt, bật lại thì luật được cài lại";
+});
+
+// ---------- Gmail giả lập: trả HTML có cấu trúc giống Gmail ngay tại mail.google.com để gmail.js chạy ----------
+function fakeGmail(subject, senderName, senderEmail, body, linkText, href) {
+  return `<!doctype html><meta charset="utf-8"><body>
+    <div style="height:40px">Gmail</div>
+    <div class="ha"><h2 class="hP">${subject}</h2></div>
+    <div class="gs"><span class="gD" email="${senderEmail}" name="${senderName}">${senderName}</span>
+      <div class="a3s">${body} <a href="${href}">${linkText}</a></div></div></body>`;
+}
+async function openFakeGmail(threadId, html) {
+  const p = await browser.newPage();
+  await p.setRequestInterception(true);
+  p.on("request", (r) => (r.url().startsWith("https://mail.google.com/")
+    ? r.respond({ status: 200, contentType: "text/html; charset=utf-8", body: html })
+    : r.continue()));
+  await p.goto(`https://mail.google.com/mail/u/0/#inbox/${threadId}`);
+  const box = await waitFor(() => p.evaluate(() => {
+    const b = document.querySelector(".phishguard-email-banner")?.shadowRoot?.querySelector(".box");
+    return b && !b.classList.contains("loading") ? { cls: b.className, text: b.textContent } : null;
+  }), 40000);
+  const underSubject = await p.evaluate(() =>
+    document.querySelector("h2.hP").parentElement.nextElementSibling?.className === "phishguard-email-banner");
+  const all = await worker.evaluate(() => chrome.storage.session.get(null));
+  const stored = Object.entries(all).find(([k, v]) => k.startsWith("email:") && v.url?.endsWith(threadId))?.[1];
+  await p.close();
+  return { box, underSubject, stored };
+}
+
+await test("Gmail: email giả ngân hàng → thanh đỏ dưới tiêu đề, popup có kết quả", async () => {
+  const { box, underSubject, stored } = await openFakeGmail("FAKEVCB1", fakeGmail(
+    "[KHẨN] Tài khoản sẽ bị tạm khóa trong 24 giờ", "Vietcombank", "thongbao@vcb-canhbao.com",
+    "Kính gửi quý khách, vui lòng nhập mật khẩu và mã OTP để xác minh.",
+    "https://www.vietcombank.com.vn/xac-minh", "https://vcb-xacminh-taikhoan.top/login"));
+  if (!/phishing|suspicious/.test(box.cls)) throw new Error(`thanh sai: ${box.cls} ${box.text.slice(0, 60)}`);
+  if (!underSubject) throw new Error("thanh không nằm dưới tiêu đề");
+  if (!stored) throw new Error("popup không có kết quả email");
+  return `${stored.result.verdict} ${stored.result.score}; ${box.text.slice(0, 50)}`;
+});
+
+await test("Gmail: thư bảo mật thật của Google → thanh xanh 'đã kiểm tra'", async () => {
+  const { box, stored } = await openFakeGmail("FAKEGOOG1", fakeGmail(
+    "Cảnh báo bảo mật", "Google", "no-reply@accounts.google.com",
+    "Chúng tôi phát hiện thấy có một yêu cầu đăng nhập mới vào Tài khoản Google của bạn trên một thiết bị Windows. "
+      + "Nếu đây không phải là yêu cầu của bạn, thì chúng tôi sẽ giúp bạn bảo mật tài khoản.",
+    "Kiểm tra hoạt động", "https://accounts.google.com/AccountChooser?Email=a.b@gmail.com&continue=x"));
+  if (!box.cls.includes("safe")) throw new Error(`thanh sai: ${box.cls} ${box.text.slice(0, 80)}`);
+  return `${stored?.result.verdict}; ${box.text.slice(0, 50)}`;
 });
 
 await test("Popup mở được, đủ các phần", async () => {

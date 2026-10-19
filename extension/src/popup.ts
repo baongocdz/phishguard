@@ -60,14 +60,17 @@ async function showEmailResult(tab: chrome.tabs.Tab): Promise<void> {
   const stored: EmailResult | null = tab.id
     ? await chrome.runtime.sendMessage({ type: "GET_EMAIL_RESULT", tabId: tab.id } satisfies ExtMessage)
     : null;
-  // Gmail đổi #id trên URL khi mở thư khác: chỉ hiện nếu đúng thư đang mở.
-  if (!stored || stored.url !== tab.url) {
+  if (!stored) {
     $("url").textContent = "Gmail";
     $("verdict").className = "chip none";
     $("verdict").textContent = "Mở một email để PhishGuard kiểm tra";
     return;
   }
-  $("url").textContent = `✉ ${stored.subject || "(không tiêu đề)"} — ${stored.sender}`;
+  // Gmail: #inbox/<mã thư>, #search/abc/<mã thư>... So theo mã thư; khác thư thì vẫn hiện kết quả
+  // gần nhất nhưng ghi rõ.
+  const threadId = (u = "") => (u.split("#")[1] ?? "").split("/").pop() ?? "";
+  const same = threadId(stored.url) !== "" && threadId(stored.url) === threadId(tab.url);
+  $("url").textContent = `${same ? "" : "Email vừa kiểm tra gần nhất: "}✉ ${stored.subject || "(không tiêu đề)"} — ${stored.sender}`;
   showVerdict(stored.result);
 }
 

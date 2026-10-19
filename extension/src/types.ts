@@ -66,7 +66,7 @@ export type ExtMessage =
   | { type: "PAGE_INFO"; payload: PageInfo }
   | { type: "SHOW_WARNING"; result: AnalysisResult }
   | { type: "GET_RESULT"; tabId: number }
-  | { type: "ANALYZE_EMAIL"; payload: EmailInfo }
+  | { type: "ANALYZE_EMAIL"; payload: EmailInfo; pageUrl?: string }
   | { type: "ANALYZE_URL"; url: string; kind: "qr" | "manual" }
   | { type: "REPORT"; payload: ReportInfo }
   | { type: "AD_ALLOW"; url: string; always: boolean }

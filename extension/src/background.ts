@@ -52,7 +52,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
   // Các yêu cầu dưới đây gọi API từ background (content script trên Gmail bị
   // CSP của trang chặn gọi thẳng tới backend).
   if (msg.type === "ANALYZE_EMAIL") {
-    handleEmail(msg.payload, sender.tab?.id, sender.url ?? "").then(sendResponse);
+    handleEmail(msg.payload, sender.tab?.id, msg.pageUrl ?? sender.url ?? "").then(sendResponse);
     return true;
   }
   if (msg.type === "GET_EMAIL_RESULT") {

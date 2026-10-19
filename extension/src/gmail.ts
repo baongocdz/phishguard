@@ -27,7 +27,7 @@ function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } 
   const email = senderEl?.getAttribute("email") ?? "";
 
   const links = Array.from(body.querySelectorAll<HTMLAnchorElement>("a[href]"))
-    .filter((a) => /^https?:/i.test(a.href))
+    .filter((a) => /^https?:/i.test(a.href) && a.href.length <= 2048) // link quá dài: server từ chối cả email
     .slice(0, 200)
     .map((a) => ({ text: a.innerText.trim().slice(0, 300), href: a.href }));
 
@@ -37,14 +37,16 @@ function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } 
   return { key, info, anchor: body };
 }
 
+const hasBanner = () => !!document.querySelector(`.${BANNER_CLASS}`);
+
 function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
-  anchor.parentElement?.querySelector(`.${BANNER_CLASS}`)?.remove();
+  document.querySelectorAll(`.${BANNER_CLASS}`).forEach((b) => b.remove());
   const host = document.createElement("div");
   host.className = BANNER_CLASS;
   const root = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent = `
-    .box { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; color: #fff;
+    .box { margin: 8px 0 12px; padding: 10px 14px; border-radius: 8px; color: #fff;
            font: 14px/1.45 system-ui, sans-serif; }
     .phishing { background: #c62828; } .suspicious { background: #ef6c00; }
     .safe, .loading { padding: 6px 12px; font-size: 13px; color: #1e4620; background: #e7f6ee; border: 1px solid #b7dfc5; }
@@ -54,7 +56,11 @@ function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
   const box = document.createElement("div");
   box.className = `box ${cls}`;
   root.append(style, box);
-  anchor.parentElement?.insertBefore(host, anchor);
+  // Đặt ngay dưới tiêu đề email: luôn nhìn thấy khi mở thư, kể cả thread dài nhiều thư
+  // (đặt trên nội dung thư cuối thì hay bị cuộn khuất). Không có tiêu đề thì đặt trên nội dung.
+  const subjectRow = document.querySelector<HTMLElement>("h2.hP")?.parentElement;
+  if (subjectRow?.parentElement) subjectRow.after(host);
+  else anchor.parentElement?.insertBefore(host, anchor);
   return box;
 }
 
@@ -93,17 +99,17 @@ async function check(): Promise<void> {
   if (!mail) return;
   if (analyzed.has(mail.key)) {
     const r = analyzed.get(mail.key);
-    if (r && !mail.anchor.parentElement?.querySelector(`.${BANNER_CLASS}`)) showBanner(mail.anchor, r);
+    if (r && !hasBanner()) showBanner(mail.anchor, r);
     return;
   }
   analyzed.set(mail.key, null); // đánh dấu đang xử lý, tránh gửi trùng
   showLoading(mail.anchor);
   const r: AnalysisResult | null = await chrome.runtime.sendMessage(
-    { type: "ANALYZE_EMAIL", payload: mail.info } satisfies ExtMessage,
+    { type: "ANALYZE_EMAIL", payload: mail.info, pageUrl: location.href } satisfies ExtMessage,
   ).catch(() => null);
   if (!r) {
     analyzed.delete(mail.key); // lỗi mạng: lần sau thử lại
-    mail.anchor.parentElement?.querySelector(`.${BANNER_CLASS}`)?.remove();
+    document.querySelectorAll(`.${BANNER_CLASS}`).forEach((b) => b.remove());
     return;
   }
   analyzed.set(mail.key, r);
@@ -122,3 +128,4 @@ const observer = new MutationObserver(() => {
   timer = window.setTimeout(() => void check().catch(() => {}), 800);
 });
 observer.observe(document.body, { childList: true, subtree: true });
+void check().catch(() => {}); // email đã mở sẵn lúc tải trang (vd mở bằng link thẳng tới thư)
