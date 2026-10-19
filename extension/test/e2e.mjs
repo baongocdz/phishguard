@@ -21,6 +21,22 @@ const PAGES = {
     <a id="bad" href="https://secure-vietcombank-xacminh.top/login">Đăng nhập ngân hàng</a><br><br>
     <a id="good" href="https://vnexpress.net/">Đọc báo</a></body>`,
   "/clean.html": `<!doctype html><meta charset="utf-8"><title>Trang thường</title><body><p>Xin chào</p></body>`,
+  // Kiểu web phim lậu, nhưng mạng quảng cáo KHÔNG có trong danh sách (trang mở ở localhost, trang đích ở "web" khác: 127.0.0.1;
+  // không đặt trang nguồn ở 127.0.0.1 vì banner "đáng ngờ" (địa chỉ IP) sẽ che nút).
+  "/popunder.html": `<!doctype html><meta charset="utf-8"><body style="padding:20px">
+    <button id="play">▶ Xem phim</button>
+    <button id="blank">▶ Tập 2</button>
+    <button id="login">Đăng nhập (cửa sổ nhỏ)</button>
+    <a id="real" href="${BASE}/clean.html?link" target="_blank">Link thật sang web khác</a>
+    <script>
+      const AD = "${BASE}/clean.html?utm_source=lạ";
+      play.onclick = () => window.open(AD, "_blank");
+      blank.onclick = () => { const w = window.open("", "_blank"); w.location = AD + "&blank"; };
+      login.onclick = () => window.open("${BASE}/clean.html?login", "_blank", "width=480,height=600");
+    </script></body>`,
+  "/overlay.html": `<!doctype html><meta charset="utf-8"><body><p>Nội dung phim…</p>
+    <a id="ov" href="${BASE}/clean.html?overlay" target="_blank"
+       style="position:fixed;inset:0;opacity:0;z-index:9999"></a></body>`,
 };
 const server = http.createServer((req, res) => {
   const path = req.url.split("?")[0];
@@ -150,6 +166,68 @@ await test("Popunder mở link affiliate Shopee → cảnh báo affiliate", asyn
   await p.close();
   if (!/affiliate|tiếp thị/i.test(title)) throw new Error(`tiêu đề sai: ${title}`);
   return title.trim();
+});
+
+// ---------- Popunder của mạng quảng cáo lạ (không có trong danh sách) ----------
+// Tab mới xuất hiện SAU cú bấm (không dùng sự kiện targetcreated: dễ bắt nhầm tab khác).
+async function clickOpensTab(p, click) {
+  const before = new Set(browser.targets());
+  await click();
+  return browser.waitForTarget((t) => t.type() === "page" && !before.has(t), { timeout: 8000 });
+}
+// Đóng mọi tab trừ tab chính. (Không dùng target.page(): Puppeteer treo với tab mở bằng window.open("").)
+async function closeOtherTabs() {
+  for (const p of await browser.pages()) if (p !== page) await p.close().catch(() => {});
+  await page.bringToFront(); // tab nền không được vẽ lại → page.click() chờ mãi
+}
+async function expectBlocked(target) {
+  try {
+    await waitFor(() => target.url().includes("blocked.html#pop"), 8000);
+    return decodeURIComponent(target.url().split("#pop|")[1] ?? "");
+  } finally {
+    await closeOtherTabs();
+  }
+}
+async function expectNotBlocked(target) {
+  await sleep(2500);
+  const url = target.url();
+  await closeOtherTabs();
+  if (url.includes("blocked.html")) throw new Error(`bị chặn nhầm: ${url}`);
+  return url;
+}
+
+await test("Bấm nút Play, trang tự mở tab sang web lạ → chặn", async () => {
+  await page.goto(`${SAFE}/popunder.html`);
+  const target = await clickOpensTab(page, () => page.click("#play"));
+  await waitFor(() => target.url().includes("blocked.html#pop"), 8000);
+  const p = await target.page();
+  await waitFor(() => p.$eval("#title", (e) => /tự bật/.test(e.textContent)).catch(() => false), 5000);
+  const title = await p.$eval("#title", (e) => e.textContent.trim());
+  return `${title} — ${await expectBlocked(target)}`;
+});
+
+await test("Tab mở trống rồi mới gán địa chỉ quảng cáo → chặn", async () => {
+  return expectBlocked(await clickOpensTab(page, () => page.click("#blank")));
+});
+
+await test("Bấm trúng link trong suốt phủ kín trang → chặn", async () => {
+  await page.goto(`${SAFE}/overlay.html`);
+  return expectBlocked(await clickOpensTab(page, () => page.mouse.click(300, 200)));
+});
+
+await test("Bấm link thật mở tab sang web khác → không chặn", async () => {
+  await page.goto(`${SAFE}/popunder.html`);
+  return expectNotBlocked(await clickOpensTab(page, () => page.click("#real")));
+});
+
+await test("Cửa sổ đăng nhập (window.open có kích thước) → không chặn", async () => {
+  return expectNotBlocked(await clickOpensTab(page, () => page.click("#login")));
+});
+
+await test("URL tự khai utm_medium=popunder (như yo88) → chặn", async () => {
+  await page.goto(`${SAFE}/clean.html?a=1&utm_source=nanaproorg&utm_medium=popunder&utm_campaign=cpd`).catch(() => {});
+  await waitFor(() => page.url().includes("blocked.html#pop"), 8000);
+  return decodeURIComponent(new URL(page.url()).hash).slice(0, 60);
 });
 
 await test("Link thường (vnexpress) không bị chặn", async () => {

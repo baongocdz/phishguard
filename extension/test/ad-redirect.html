@@ -28,7 +28,15 @@
 <button id="affiliate">▶ Đọc chương tiếp</button>
 
 <h3>5. Link bình thường (không bị chặn)</h3>
-<p><a href="https://vnexpress.net/">vnexpress.net</a></p>
+<p><a href="https://vnexpress.net/" target="_blank">vnexpress.net</a> (mở tab mới vì bạn bấm đúng link → không chặn)</p>
+
+<h3>6. Mạng quảng cáo LẠ, không có trong danh sách (phát hiện theo hành vi)</h3>
+<p>Bấm nút (không phải link) mà trang tự mở tab sang web khác → PhishGuard nhận ra là tab quảng cáo tự bật.</p>
+<button id="unknown">▶ Xem tập 2 (mở tab quảng cáo lạ)</button>
+<button id="unknown-blank">▶ Xem tập 3 (mở tab trống rồi mới gán địa chỉ)</button>
+
+<h3>7. URL quảng cáo tự khai <code>utm_medium=popunder</code> (giống trang yo88)</h3>
+<p><a href="https://example.com/?a=1&utm_source=nanaproorg&utm_medium=popunder&utm_campaign=cpd">Trang đích quảng cáo popunder</a></p>
 
 <script>
   document.getElementById("popunder").addEventListener("click", () => {
@@ -36,6 +44,13 @@
   });
   document.getElementById("affiliate").addEventListener("click", () => {
     window.open("https://s.shopee.vn/AbCdEf123", "_blank");
+  });
+  document.getElementById("unknown").addEventListener("click", () => {
+    window.open("https://example.org/?campaign=popunder-demo", "_blank");
+  });
+  document.getElementById("unknown-blank").addEventListener("click", () => {
+    const w = window.open("", "_blank");
+    w.location = "https://example.net/?campaign=popunder-demo";
   });
   document.getElementById("redirect").addEventListener("click", () => {
     setTimeout(() => { location.href = "https://www.propellerads.com/"; }, 2000);

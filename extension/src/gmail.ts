@@ -14,8 +14,10 @@ async function enabled(): Promise<boolean> {
 
 function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } | null {
   const subject = document.querySelector<HTMLElement>("h2.hP")?.innerText.trim() ?? "";
-  // Một cuộc hội thoại có thể có nhiều thư; lấy thư cuối cùng đang mở.
-  const bodies = Array.from(document.querySelectorAll<HTMLElement>("div.a3s"));
+  // Một cuộc hội thoại có thể có nhiều thư; lấy thư cuối cùng đang mở VÀ đang hiện trên màn hình
+  // (Gmail giữ sẵn các khung div.a3s bị ẩn; chèn banner vào đó thì người dùng không thấy).
+  const bodies = Array.from(document.querySelectorAll<HTMLElement>("div.a3s"))
+    .filter((b) => b.getClientRects().length > 0 && b.innerText.trim());
   const body = bodies.at(-1);
   if (!body) return null;
   const message = body.closest<HTMLElement>("div.adn, div.gs") ?? body.parentElement!;
@@ -35,10 +37,8 @@ function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } 
   return { key, info, anchor: body };
 }
 
-function showBanner(anchor: HTMLElement, r: AnalysisResult): void {
+function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
   anchor.parentElement?.querySelector(`.${BANNER_CLASS}`)?.remove();
-  if (r.verdict === "safe") return;
-
   const host = document.createElement("div");
   host.className = BANNER_CLASS;
   const root = host.attachShadow({ mode: "open" });
@@ -47,10 +47,28 @@ function showBanner(anchor: HTMLElement, r: AnalysisResult): void {
     .box { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; color: #fff;
            font: 14px/1.45 system-ui, sans-serif; }
     .phishing { background: #c62828; } .suspicious { background: #ef6c00; }
+    .safe, .loading { padding: 6px 12px; font-size: 13px; color: #1e4620; background: #e7f6ee; border: 1px solid #b7dfc5; }
+    .loading { color: #5d6b82; background: #f5f7fb; border-color: #e2e7f0; }
     ul { margin: 6px 0 0 18px; padding: 0; }
   `;
   const box = document.createElement("div");
-  box.className = `box ${r.verdict}`;
+  box.className = `box ${cls}`;
+  root.append(style, box);
+  anchor.parentElement?.insertBefore(host, anchor);
+  return box;
+}
+
+function showLoading(anchor: HTMLElement): void {
+  bannerShell(anchor, "loading").textContent = "🛡️ PhishGuard đang kiểm tra email này…";
+}
+
+function showBanner(anchor: HTMLElement, r: AnalysisResult): void {
+  if (r.verdict === "safe") {
+    bannerShell(anchor, "safe").textContent =
+      "✓ PhishGuard đã kiểm tra: chưa thấy dấu hiệu lừa đảo trong email này. (Bấm icon PhishGuard để xem chi tiết)";
+    return;
+  }
+  const box = bannerShell(anchor, r.verdict);
   const title = document.createElement("strong");
   title.textContent = r.verdict === "phishing"
     ? `⚠ PhishGuard: email này có dấu hiệu LỪA ĐẢO (mức ${Math.round(r.score * 100)}/100)`
@@ -65,8 +83,6 @@ function showBanner(anchor: HTMLElement, r: AnalysisResult): void {
   tip.textContent = "Không bấm link, không nhập mật khẩu/OTP, không chuyển tiền theo yêu cầu trong email.";
   tip.style.marginTop = "6px";
   box.append(title, list, tip);
-  root.append(style, box);
-  anchor.parentElement?.insertBefore(host, anchor);
 }
 
 let timer: number | undefined;
@@ -81,11 +97,13 @@ async function check(): Promise<void> {
     return;
   }
   analyzed.set(mail.key, null); // đánh dấu đang xử lý, tránh gửi trùng
+  showLoading(mail.anchor);
   const r: AnalysisResult | null = await chrome.runtime.sendMessage(
     { type: "ANALYZE_EMAIL", payload: mail.info } satisfies ExtMessage,
-  );
+  ).catch(() => null);
   if (!r) {
     analyzed.delete(mail.key); // lỗi mạng: lần sau thử lại
+    mail.anchor.parentElement?.querySelector(`.${BANNER_CLASS}`)?.remove();
     return;
   }
   analyzed.set(mail.key, r);

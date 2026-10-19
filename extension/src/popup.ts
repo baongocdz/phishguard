@@ -1,6 +1,6 @@
 import jsQR from "jsqr";
 import { API_BASE } from "./config";
-import type { AnalysisResult, ExtMessage, HistoryItem } from "./types";
+import type { AnalysisResult, EmailResult, ExtMessage, HistoryItem } from "./types";
 
 const LABEL = { safe: "An toàn", suspicious: "Đáng ngờ", phishing: "Lừa đảo" } as const;
 const SOURCE: Record<string, string> = {
@@ -47,9 +47,34 @@ function renderBreakdown(result: AnalysisResult): void {
   box.classList.remove("hidden");
 }
 
+function showVerdict(result: AnalysisResult): void {
+  $("verdict").className = `chip ${result.verdict}`;
+  $("verdict").textContent = `${LABEL[result.verdict]} · điểm ${result.score}`;
+  renderReasons($("reasons"), result.reasons);
+  renderBreakdown(result);
+  $("source").textContent = `Nguồn kết quả: ${SOURCE[result.source] ?? result.source}`;
+}
+
+// ---------- Gmail: kết quả của email đang mở (gmail.ts gửi, background lưu theo tab) ----------
+async function showEmailResult(tab: chrome.tabs.Tab): Promise<void> {
+  const stored: EmailResult | null = tab.id
+    ? await chrome.runtime.sendMessage({ type: "GET_EMAIL_RESULT", tabId: tab.id } satisfies ExtMessage)
+    : null;
+  // Gmail đổi #id trên URL khi mở thư khác: chỉ hiện nếu đúng thư đang mở.
+  if (!stored || stored.url !== tab.url) {
+    $("url").textContent = "Gmail";
+    $("verdict").className = "chip none";
+    $("verdict").textContent = "Mở một email để PhishGuard kiểm tra";
+    return;
+  }
+  $("url").textContent = `✉ ${stored.subject || "(không tiêu đề)"} — ${stored.sender}`;
+  showVerdict(stored.result);
+}
+
 // ---------- Kết quả của tab hiện tại + nút báo sai ----------
 async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
   const verdictEl = $("verdict");
+  if (tab?.url?.startsWith("https://mail.google.com/")) return showEmailResult(tab);
   $("url").textContent = tab?.url ?? "";
 
   const result: AnalysisResult | null = tab?.id
@@ -64,11 +89,7 @@ async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
     return;
   }
 
-  verdictEl.className = `chip ${result.verdict}`;
-  verdictEl.textContent = `${LABEL[result.verdict]} · điểm ${result.score}`;
-  renderReasons($("reasons"), result.reasons);
-  renderBreakdown(result);
-  $("source").textContent = `Nguồn kết quả: ${SOURCE[result.source] ?? result.source}`;
+  showVerdict(result);
 
   let url: URL;
   try {
@@ -198,7 +219,7 @@ async function setupHistory(): Promise<void> {
     let host = h.url;
     try { host = new URL(h.url).hostname; } catch { /* giữ nguyên */ }
     const text = document.createElement("span");
-    text.textContent = `${h.kind === "qr" ? "▦ " : ""}${host}`;
+    text.textContent = `${h.kind === "qr" ? "▦ " : h.kind === "email" ? "✉ " : ""}${host}`;
     text.title = h.url;
     const time = document.createElement("small");
     time.textContent = new Date(h.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });

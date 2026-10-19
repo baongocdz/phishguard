@@ -64,6 +64,11 @@ function tokens(host: string): string[] {
     .map((t) => t.replace(/[013457]/g, (c) => LEET[c]));
 }
 
+/** Tên miền chính thức của một thương hiệu trong BRANDS (accounts.google.com, momo.vn...). */
+export function isOfficialBrandHost(host: string): boolean {
+  return Object.values(BRANDS).some((domains) => isOfficial(host, domains));
+}
+
 function isOfficial(host: string, domains: string[]): boolean {
   return domains.some((d) => host === d || host.endsWith("." + d));
 }

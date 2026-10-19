@@ -10,6 +10,7 @@ const options = {
     popup: "src/popup.ts",
     gmail: "src/gmail.ts",
     blocked: "src/blocked.ts",
+    clicktrack: "src/clicktrack.ts",
   },
   bundle: true,
   format: "iife",

@@ -12,12 +12,21 @@ const AFFILIATE_HOME: string[] = adList.affiliateHome;
 const RULE_AD = 1000;
 const RULE_AD_FRAME = 1001;
 const RULE_AFFILIATE = 1002;
+const RULE_POP_MARKER = 1003;
+// Trang đích của quảng cáo popunder thường tự khai trong URL (vd yo88.town/?utm_medium=popunder).
+// Bắt được cả khi mạng quảng cáo không có trong danh sách. \0 = toàn bộ URL.
+const POP_MARKER = "^https?://.*[?&]utm_medium=(popunder|popup|pop|onclick|clickunder|tabunder)([&#].*)?$";
 const ALLOW_BASE = 2000; // 2000.. luật "luôn cho phép" người dùng đã chọn
 const ONCE_BASE = 9000; // 9000.. luật "cho qua một lần" (session, 60 giây)
 
 // Chrome giới hạn mỗi regex 2KB bộ nhớ, nên KHÔNG so tên miền bằng regex.
 // requestDomains lo phần so tên miền (khớp cả tên miền con); regex "^.+$" chỉ để
 // lấy lại toàn bộ URL (\0) gắn vào sau dấu # của trang cảnh báo.
+/** Trang cảnh báo của extension cho URL bị chặn; prefix: ad | aff | pop. */
+export function blockedPage(prefix: string, url: string): string {
+  return `${chrome.runtime.getURL("blocked.html")}#${prefix}|${url}`;
+}
+
 function redirectTo(prefix: string): chrome.declarativeNetRequest.RuleAction {
   return {
     type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
@@ -53,6 +62,12 @@ function buildRules(allowed: string[]): chrome.declarativeNetRequest.Rule[] {
         excludedInitiatorDomains: AFFILIATE_HOME,
         resourceTypes: [MAIN],
       },
+    },
+    {
+      id: RULE_POP_MARKER,
+      priority: 1,
+      action: redirectTo("pop|"),
+      condition: { regexFilter: POP_MARKER, isUrlFilterCaseSensitive: false, resourceTypes: [MAIN] },
     },
   ];
   allowed.slice(0, 500).forEach((domain, i) => rules.push({

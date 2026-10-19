@@ -56,10 +56,12 @@
 | Bộ luật chạy offline khi backend lỗi | `src/analyzer.ts` → `analyzeLocal` | **Phải giữ giống** `backend/app/heuristics.py` |
 | Rê chuột vào link → tooltip nếu đáng ngờ | `src/content.ts` (cuối file) | Chỉ chấm bằng luật trên máy, không gửi gì lên server |
 | Quét mã QR trên màn hình (quishing) | `src/popup.ts` → `scanQr` | `captureVisibleTab` + thư viện `jsqr`. Thử cả màn hình rồi từng góc phần tư |
-| Phân tích email đang mở trong Gmail | `src/gmail.ts` | Dựa vào class DOM của Gmail (`h2.hP`, `span.gD`, `div.a3s`) → **Gmail đổi giao diện là hỏng**. Tắt được trong popup |
+| Phân tích email đang mở trong Gmail | `src/gmail.ts` | Dựa vào class DOM của Gmail (`h2.hP`, `span.gD`, `div.a3s` **đang hiển thị**) → **Gmail đổi giao diện là hỏng**. Hiện thanh "đang kiểm tra" → xanh (an toàn) / đỏ, cam (nguy hiểm). Popup trên Gmail hiện kết quả **email đang mở** (lưu theo tab). Tắt được trong popup. **Đã thử thật 19/10/2026: chạy** |
 | Báo kết quả sai (chặn nhầm / báo lừa đảo) | `src/popup.ts` → `/report` | Hiện trong dashboard để duyệt |
 | Chặn chuyển hướng sang mạng quảng cáo popunder | `src/adblock.ts`, `src/ad-domains.json`, `blocked.html` | Dùng `declarativeNetRequest`. Trang cảnh báo: Quay lại / Mở lần này (60 giây) / Luôn cho phép |
 | Cảnh báo link affiliate Shopee/Lazada bị ép mở | như trên (`affiliate` trong JSON) | Chỉ khi trang **bên thứ ba** đẩy sang. Ý tưởng từ bộ lọc ABPVN |
+| **Chặn tab quảng cáo tự bật của mạng lạ** (không cần danh sách) | `src/popunder.ts`, `src/clicktrack.ts` | Trang tự mở tab sang **web khác** sau cú bấm, mà chỗ bấm không phải link tới đó (nút Play, nền, link trong suốt phủ kín) → trang cảnh báo `pop`. Bỏ qua: cùng web, thương hiệu chính chủ, cửa sổ đăng nhập (`window.open` có kích thước), danh sách "luôn cho phép". `clicktrack.js` chạy mọi khung (cả iframe trình phát) |
+| Chặn URL tự khai `utm_medium=popunder/popup/onclick...` | `src/adblock.ts` (`POP_MARKER`) | Bắt trang đích như `yo88.town/?utm_medium=popunder`. Cần `host_permissions` mọi trang (luật redirect) |
 | Giải thích điểm (mỗi lớp góp bao nhiêu) | `src/popup.ts` → `renderBreakdown` | Dùng trường `breakdown` backend trả về |
 | Lịch sử cảnh báo (30 dòng) | `src/background.ts` → `addHistory`, popup | Chỉ lưu trên máy (`chrome.storage.local`) |
 
@@ -135,13 +137,14 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 - **Mô hình email/tin nhắn** (`eval/evaluate_text.py`, dữ liệu `ealvaradob/phishing-dataset` file
   `texts.json` trên Hugging Face, Apache-2.0, 20.137 email/SMS tiếng Anh): test 4.028 văn bản —
   Precision 0.974, Recall 0.958, F1 0.966, ROC-AUC 0.996, chặn nhầm 1.6%. Báo cáo: `eval/results/TEXT_REPORT.md`.
-  Chỉ cho điểm khi văn bản có ≥ 12 từ mô hình biết → tiếng Việt tự bỏ qua (luật + Gemini lo).
+  Chỉ cho điểm khi văn bản có ≥ 12 từ mô hình biết **và không phải tiếng Việt có dấu** (≥ 10% số từ mang dấu
+  → bỏ qua; xem sự cố mục 4) → tiếng Việt do luật + Gemini lo.
 
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng | 59 |
-| Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo, affiliate, "Mở lần này", công tắc, popup | 13 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng | 62 |
+| Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ**), affiliate, "Mở lần này", công tắc, popup | 19 |
 | Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
 
@@ -149,7 +152,7 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
   Test trình duyệt (e2e, web-test) chỉ chạy ở máy (dùng Chrome for Testing do Puppeteer tải về `~/.cache/puppeteer`).
 - Thêm `HEADFUL=1` trước lệnh e2e/web-test để xem trình duyệt chạy.
 
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **43 test**, không cần MongoDB
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **62 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
   (thêm `--admin <mã>` để thử dashboard; truyền `http://localhost:8000` để thử bản ở máy).
@@ -194,14 +197,17 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
 | Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
 | Đổi giao diện xong, trên Render thấy icon thành khối đen to, trang vỡ | Trình duyệt giữ `style.css` cũ (server không gửi `Cache-Control` → trình duyệt tự giữ hàng giờ), ghép với HTML mới | Middleware gửi `Cache-Control: no-cache` cho trang + `/static/*`; link CSS/JS có `?v=N` — **tăng N mỗi khi sửa CSS/JS** (cả trong `sw.js`). Người đã bị thì bấm Ctrl+F5 |
+| Thư bảo mật **thật** của Google (tiếng Việt) bị chấm lừa đảo 0.6 | (1) Mô hình email tiếng Anh cắt vụn tiếng Việt có dấu ("chúng" → "ch","ng") thành mảnh trùng từ tiếng Anh, vượt ngưỡng 12 từ → 98%; (2) link `accounts.google.com/...?Email=a@b` bị luật trang web coi là lạ (có `@`, "account"); (3) chữ "Cảnh báo" | `text_ml.is_vietnamese` bỏ qua văn bản ≥10% từ có dấu; link về tên miền chính chủ không xét; người gửi chính chủ + link sạch → bỏ qua từ khóa nội dung. `CACHE_VERSION` → v3. Thư giả (người gửi đúng nhưng link lạ, hoặc tên miền nhái) vẫn bị bắt — có test |
+| Web phim lậu vẫn bật tab quảng cáo (yo88.town) | Chỉ chặn theo danh sách 42 mạng quảng cáo; mạng lạ lọt. Trang thử cũng chỉ dùng mạng có trong danh sách nên test không thấy | Thêm phát hiện theo hành vi (`popunder.ts`) + luật `utm_medium=popunder`; test e2e dùng mạng **không** có trong danh sách |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
 
 ---
 
 ## 5. Hạn chế / chưa kiểm chứng
 
-- **Chưa thử trên trình duyệt thật:** phân tích Gmail, nút quét QR trong popup, chặn quảng cáo
-  (đã mô phỏng logic luật, nhưng chưa chạy trong Chrome).
+- **Chưa thử trên trình duyệt thật:** nút quét QR trong popup. (Gmail và chặn quảng cáo đã thử thật 19/10/2026.)
+- Chặn tab quảng cáo tự bật: trang **hợp lệ** mở web khác bằng nút (không phải link), vd nút "Thanh toán" sang cổng lạ,
+  sẽ bị hiện trang cảnh báo → bấm "Mở lần này" / "Luôn cho phép". Chưa chặn kiểu "tab-under" (tab cũ bị đổi sang quảng cáo).
 - Gmail: phụ thuộc class DOM, Gmail đổi giao diện là phải sửa `src/gmail.ts`. Chưa đọc được Reply-To trong Gmail.
 - Rate limit lưu trong RAM, lấy IP từ `X-Forwarded-For` → người cố tình giả IP vẫn vượt được. Khởi động lại là mất bộ đếm.
 - ML chỉ học từ **tên miền**; dữ liệu hợp lệ của PhiUSIIL ít tên miền Việt Nam.

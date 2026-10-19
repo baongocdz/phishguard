@@ -1,8 +1,10 @@
 import { allowAlways, allowOnce, applyAdRules } from "./adblock";
 import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
-import type { AnalysisResult, ExtMessage, HistoryItem, PageInfo } from "./types";
+import { watchPopunders } from "./popunder";
+import type { AnalysisResult, EmailInfo, EmailResult, ExtMessage, HistoryItem, PageInfo } from "./types";
 
 const resultKey = (tabId: number) => `result:${tabId}`;
+const emailKey = (tabId: number) => `email:${tabId}`;
 const HISTORY_MAX = 30;
 
 /** Lịch sử cảnh báo: chỉ lưu trên máy (chrome.storage.local), tối đa HISTORY_MAX dòng. */
@@ -29,6 +31,19 @@ async function handlePageInfo(tabId: number, info: PageInfo): Promise<void> {
   }
 }
 
+/** Email đang mở trong Gmail: phân tích, nhớ theo tab để popup hiện lại, email nguy hiểm thì ghi lịch sử. */
+async function handleEmail(email: EmailInfo, tabId: number | undefined, url: string): Promise<AnalysisResult | null> {
+  const result = await analyzeEmail(email);
+  if (result && tabId !== undefined) {
+    const stored: EmailResult = { url, subject: email.subject, sender: email.sender, result };
+    await chrome.storage.session.set({ [emailKey(tabId)]: stored });
+    if (result.verdict !== "safe") {
+      await addHistory({ url: email.subject || email.sender, verdict: result.verdict, score: result.score, kind: "email", at: Date.now() });
+    }
+  }
+  return result;
+}
+
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
   if (msg.type === "PAGE_INFO" && sender.tab?.id !== undefined) {
     void handlePageInfo(sender.tab.id, msg.payload);
@@ -37,7 +52,13 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
   // Các yêu cầu dưới đây gọi API từ background (content script trên Gmail bị
   // CSP của trang chặn gọi thẳng tới backend).
   if (msg.type === "ANALYZE_EMAIL") {
-    analyzeEmail(msg.payload).then(sendResponse);
+    handleEmail(msg.payload, sender.tab?.id, sender.url ?? "").then(sendResponse);
+    return true;
+  }
+  if (msg.type === "GET_EMAIL_RESULT") {
+    chrome.storage.session.get(emailKey(msg.tabId)).then((data) => {
+      sendResponse((data[emailKey(msg.tabId)] as EmailResult | undefined) ?? null);
+    });
     return true;
   }
   if (msg.type === "ANALYZE_URL") {
@@ -67,8 +88,10 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void chrome.storage.session.remove(resultKey(tabId));
+  void chrome.storage.session.remove([resultKey(tabId), emailKey(tabId)]);
 });
+
+watchPopunders();
 
 // Luật chặn quảng cáo: cài khi cài/cập nhật extension, khi mở Chrome, và khi
 // người dùng bật/tắt trong popup.

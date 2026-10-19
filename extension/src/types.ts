@@ -36,8 +36,23 @@ export interface HistoryItem {
   url: string;
   verdict: Verdict;
   score: number;
-  kind: "page" | "qr";
+  kind: "page" | "qr" | "email";
   at: number;
+}
+
+/** Cú bấm gần nhất trong một khung (clicktrack.ts), để nhận ra tab quảng cáo tự bật. */
+export interface ClickInfo {
+  at: number;
+  href: string; // link được bấm ("" nếu bấm vào chỗ không phải link)
+  overlay: boolean; // link trong suốt / phủ kín màn hình
+}
+
+/** Kết quả email đang mở trong Gmail, lưu theo tab để popup hiện lại. */
+export interface EmailResult {
+  url: string; // URL Gmail lúc phân tích (có #id thư)
+  subject: string;
+  sender: string;
+  result: AnalysisResult;
 }
 
 export interface ReportInfo {
@@ -54,4 +69,6 @@ export type ExtMessage =
   | { type: "ANALYZE_EMAIL"; payload: EmailInfo }
   | { type: "ANALYZE_URL"; url: string; kind: "qr" | "manual" }
   | { type: "REPORT"; payload: ReportInfo }
-  | { type: "AD_ALLOW"; url: string; always: boolean };
+  | { type: "AD_ALLOW"; url: string; always: boolean }
+  | { type: "LAST_CLICK" }
+  | { type: "GET_EMAIL_RESULT"; tabId: number };

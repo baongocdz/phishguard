@@ -105,7 +105,10 @@ nhưng con số đó vô nghĩa khi gặp link thật.
 - Bộ luật email ở đây bị thiệt: dataset chỉ có nội dung, không có người gửi, Reply-To hay link riêng
   (khi chạy thật, luật xét cả những thứ đó).
 - Mô hình **chỉ cho điểm khi văn bản có ≥ 12 từ/cặp từ mà nó biết**. 94% văn bản test đạt điều kiện này.
-  Tin nhắn tiếng Việt thường không đạt → hệ thống dựa vào bộ luật (có từ khóa tiếng Việt) và Gemini.
+- Văn bản **tiếng Việt có dấu** (≥ 10% số từ mang dấu) bị bỏ qua hẳn. Lý do: cách tách từ của mô hình cắt
+  "chúng" thành "ch", "ng"… trùng với từ tiếng Anh, từng làm thư bảo mật thật của Google bị chấm 98% lừa đảo.
+  Khi đó hệ thống dựa vào bộ luật (có từ khóa tiếng Việt) và Gemini. Bộ lọc này không ảnh hưởng số liệu đánh giá
+  (tập test toàn tiếng Anh).
 - Từ nghiêng về lừa đảo: `click here`, `free`, `call`, `your`, `txt`... Từ nghiêng về bình thường: `thanks`, `attached`, `wrote`, `university`...
 - Ma trận nhầm lẫn: `backend/eval/results/cm_text_ml.png`.
 
@@ -169,7 +172,7 @@ Con số 0,858 là khi **chỉ nhìn tên miền**, còn khi chạy thật hệ 
 Với bài toán này, ca khó đã có Gemini (mô hình ngôn ngữ lớn) xử lý.
 
 **Hỏi: Tin nhắn tiếng Việt thì sao?**
-Đáp: Mô hình học máy chưa có dữ liệu tiếng Việt nên tự bỏ qua (khi biết dưới 12 từ). Khi đó bộ luật có từ khóa tiếng Việt
+Đáp: Mô hình học máy chưa có dữ liệu tiếng Việt nên tự bỏ qua văn bản tiếng Việt. Khi đó bộ luật có từ khóa tiếng Việt
 (`tạm khóa`, `mã OTP`, `chuyển khoản`, `trong 24 giờ`...) và Gemini đảm nhận. Thu thập dữ liệu tiếng Việt là hướng phát triển.
 
 ---

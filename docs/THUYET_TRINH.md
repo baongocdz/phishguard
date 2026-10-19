@@ -80,6 +80,13 @@ Nhiều trang phim, truyện lậu cứ bấm vào đâu là bật tab quảng c
 hay trúng thưởng giả. PhishGuard chặn các **mạng quảng cáo chuyển hướng cưỡng ép** này ngay từ trình duyệt: trang
 quảng cáo không bao giờ được tải, thay vào đó là trang cảnh báo của PhishGuard.
 
+**[Màn hình: bấm "Xem tập 2 (mở tab quảng cáo lạ)" → trang cảnh báo "tab quảng cáo tự bật"]**
+
+Danh sách mạng quảng cáo thì không bao giờ đủ, vì mạng mới mọc lên liên tục. Nên PhishGuard còn **nhận ra theo hành vi**:
+khi trang tự mở tab sang một trang web khác ngay sau cú bấm của người dùng, mà chỗ được bấm **không phải là link tới
+trang đó** (nút Play, nền trang, hay một link trong suốt phủ kín màn hình), thì đó là quảng cáo tự bật. Cách này
+chặn được cả mạng quảng cáo chưa ai biết, mà không chặn nhầm link thật hay cửa sổ đăng nhập Google, Facebook.
+
 **[Màn hình: bấm "Đọc chương tiếp" → cảnh báo affiliate]**
 
 Em còn phát hiện một kiểu rất phổ biến ở Việt Nam: trang lậu tự đẩy người dùng sang **link tiếp thị liên kết của
@@ -209,8 +216,8 @@ Vì là công cụ bảo mật, bản thân PhishGuard cũng phải an toàn:
 ## 9. Kiểm thử (khoảng 30 giây)
 
 Hệ thống được kiểm thử ở **bốn lớp**:
-- **59 bài test** cho máy chủ.
-- **13 kịch bản** chạy extension trong Chrome thật một cách tự động.
+- **62 bài test** cho máy chủ.
+- **19 kịch bản** chạy extension trong Chrome thật một cách tự động.
 - **16 kịch bản** cho trang web và trang quản trị, gồm cả tải ảnh QR thật, **giả lập camera phát video có mã QR**,
   và kiểm tra giao diện trên điện thoại.
 - Một script kiểm tra nhanh toàn bộ máy chủ thật.

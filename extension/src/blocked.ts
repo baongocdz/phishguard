@@ -1,7 +1,7 @@
 import type { ExtMessage } from "./types";
 
-// Hash có dạng "ad|<url>" hoặc "aff|<url>" (xem adblock.ts).
-function readHash(): { kind: "ad" | "aff"; url: string } {
+// Hash có dạng "ad|<url>", "aff|<url>" hoặc "pop|<url>" (xem adblock.ts, popunder.ts).
+function readHash(): { kind: "ad" | "aff" | "pop"; url: string } {
   let raw = location.hash.slice(1);
   try {
     raw = decodeURIComponent(raw);
@@ -10,7 +10,7 @@ function readHash(): { kind: "ad" | "aff"; url: string } {
   }
   const sep = raw.indexOf("|");
   const prefix = sep > 0 ? raw.slice(0, sep) : "";
-  if (prefix === "ad" || prefix === "aff") return { kind: prefix, url: raw.slice(sep + 1) };
+  if (prefix === "ad" || prefix === "aff" || prefix === "pop") return { kind: prefix, url: raw.slice(sep + 1) };
   return { kind: "ad", url: raw };
 }
 
@@ -24,6 +24,12 @@ if (kind === "aff") {
   $("lead").textContent = "Trang bạn đang xem vừa tự đưa bạn sang một link tiếp thị liên kết (affiliate) của sàn thương mại điện tử:";
   $("tip1").textContent = "Các trang phim/truyện lậu hay làm vậy để nhận hoa hồng mỗi khi bạn mua hàng, dù bạn không hề bấm vào quảng cáo.";
   $("tip2").textContent = "Link này thường không độc hại. Nếu bạn chủ động bấm vào thì có thể mở tiếp.";
+} else if (kind === "pop") {
+  document.title = "PhishGuard đã chặn tab quảng cáo tự bật";
+  $("title").textContent = "🛡️ Đã chặn tab quảng cáo tự bật";
+  $("lead").textContent = "Trang bạn vừa xem tự mở tab mới sang một trang web khác khi bạn bấm vào chỗ không phải là link (kiểu quảng cáo popunder của web phim/truyện lậu):";
+  $("tip1").textContent = "Những tab này thường dẫn tới cờ bạc trực tuyến, trúng thưởng giả, ứng dụng lạ hoặc trang lừa đảo.";
+  $("tip2").textContent = "Nếu đúng là bạn muốn mở trang này (vd nút thanh toán, đăng nhập), bấm “Mở lần này”.";
 }
 
 // Đếm số lần chặn để hiện trong popup.
@@ -31,9 +37,9 @@ chrome.storage.local.get("adBlockedCount").then(({ adBlockedCount }) =>
   chrome.storage.local.set({ adBlockedCount: (Number(adBlockedCount) || 0) + 1 }));
 
 $("back").addEventListener("click", () => {
-  // Tab mới do popunder mở ra thì không có trang trước: đóng luôn.
-  if (history.length > 1) history.back();
-  else window.close();
+  // Tab mới do popunder mở ra thì không có trang trước (hoặc trang trước chính là quảng cáo): đóng luôn.
+  if (kind !== "pop" && history.length > 1) history.back();
+  else void chrome.tabs.getCurrent().then((t) => (t?.id !== undefined ? chrome.tabs.remove(t.id) : window.close()));
 });
 
 async function proceed(always: boolean): Promise<void> {

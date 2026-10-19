@@ -1,21 +1,34 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Phát hiện và cảnh báo phishing theo thời gian thực.",
   "permissions": [
     "storage",
     "activeTab",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "webNavigation"
   ],
   "host_permissions": [
-    "http://localhost:8000/*",
-    "https://*.onrender.com/*"
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "clicktrack.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    },
     {
       "matches": [
         "http://*/*",
