@@ -79,7 +79,9 @@ function showBox(cls, ...children) {
   const box = $("result");
   box.className = cls;
   box.replaceChildren(...children);
-  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  // Chỉ cuộn khi kết quả nằm ngoài màn hình (điện thoại); cuộn ngay, không mượt, để nút bấm không bị trôi.
+  const top = box.getBoundingClientRect().top;
+  if (top > window.innerHeight - 80 || top < 0) box.scrollIntoView({ block: "start" });
 }
 
 function showLoading(text) {

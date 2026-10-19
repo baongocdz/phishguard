@@ -193,6 +193,7 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Kết quả cũ trong cache không có phần giải thích | Cache lưu từ trước khi có `breakdown` | Khóa cache có phiên bản `CACHE_VERSION` trong `service.py` — **tăng lên khi đổi cách chấm** |
 | Mã quản trị có dấu tiếng Việt làm backend lỗi 500 | `secrets.compare_digest` không nhận chuỗi Unicode | So bằng bytes (`.encode()`) |
 | Popup hiện kết quả của trang trước | Kết quả lưu theo tab, không theo URL | Lưu kèm `url`, popup so với URL tab hiện tại |
+| Đổi giao diện xong, trên Render thấy icon thành khối đen to, trang vỡ | Trình duyệt giữ `style.css` cũ (server không gửi `Cache-Control` → trình duyệt tự giữ hàng giờ), ghép với HTML mới | Middleware gửi `Cache-Control: no-cache` cho trang + `/static/*`; link CSS/JS có `?v=N` — **tăng N mỗi khi sửa CSS/JS** (cả trong `sw.js`). Người đã bị thì bấm Ctrl+F5 |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
 
 ---

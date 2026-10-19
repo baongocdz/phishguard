@@ -50,6 +50,20 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Admin-Token"],
 )
 app.include_router(admin.router)
+
+
+# Trang web và file tĩnh: bắt trình duyệt hỏi lại server mỗi lần (không đổi thì chỉ nhận 304).
+# Không có header này, trình duyệt tự giữ style.css cũ hàng giờ → HTML mới + CSS cũ là vỡ giao diện.
+@app.middleware("http")
+async def no_stale_web_files(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if request.method == "GET" and (path in ("/", "/about", "/dashboard", "/manifest.webmanifest")
+                                    or path.startswith("/static/")):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 # Ảnh ROC / ma trận nhầm lẫn của phần đánh giá, cho trang /about.
 if EVAL_DIR.is_dir():
