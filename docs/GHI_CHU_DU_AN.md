@@ -131,7 +131,7 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 | Chỉ ML | 0.882 | 0.758 | 6.3% |
 | **Luật + ML** | **0.986** | **0.641** | **0.6%** |
 
-- ML ngang Gemini (0.797 accuracy trên 59 mẫu) nhưng nhanh hơn ~260.000 lần.
+- ML ngang Gemini (0.797 accuracy trên 59 mẫu) nhưng nhanh hơn ~80.000 lần (0,033 ms so với 2.644 ms, theo REPORT.md).
 - **Mô hình email/tin nhắn** (`eval/evaluate_text.py`, dữ liệu `ealvaradob/phishing-dataset` file
   `texts.json` trên Hugging Face, Apache-2.0, 20.137 email/SMS tiếng Anh): test 4.028 văn bản —
   Precision 0.974, Recall 0.958, F1 0.966, ROC-AUC 0.996, chặn nhầm 1.6%. Báo cáo: `eval/results/TEXT_REPORT.md`.

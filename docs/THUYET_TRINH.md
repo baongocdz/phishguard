@@ -163,7 +163,7 @@ Kết quả trên tập kiểm tra:
   chặn nhầm **0,6%**. Tức là bắt được gấp khoảng 23 lần so với chỉ dùng luật, mà vẫn giữ tỉ lệ chặn nhầm rất thấp.
 
 Em cũng so sánh với Gemini trên cùng một mẫu: **mô hình học máy của em có độ chính xác ngang Gemini (79,7%), nhưng
-nhanh hơn khoảng 260 nghìn lần** (0,01 mili-giây so với 2,6 giây) và miễn phí. Đây là lý do hệ thống dùng học máy để
+nhanh hơn khoảng 80 nghìn lần** (0,033 mili-giây so với 2,6 giây) và miễn phí. Đây là lý do hệ thống dùng học máy để
 lọc trước, chỉ hỏi AI ở những ca khó.
 
 **Mô hình thứ hai chấm email và tin nhắn**, huấn luyện trên 20 nghìn email và tin nhắn tiếng Anh. Trên tập kiểm tra
@@ -259,7 +259,7 @@ hơn, kết luận nghiêm trọng hơn luôn thắng: AI không hạ được m
 
 **Hỏi: Tại sao không dùng AI cho tất cả?**
 Đáp: AI mất khoảng 1–3 giây mỗi lần và có giới hạn lượt gọi. Mô hình học máy của em đạt độ chính xác ngang Gemini nhưng
-nhanh hơn khoảng 260 nghìn lần, nên dùng để lọc trước; AI chỉ dành cho ca khó.
+nhanh hơn khoảng 80 nghìn lần, nên dùng để lọc trước; AI chỉ dành cho ca khó.
 
 **Hỏi: Hệ thống có thu thập dữ liệu người dùng không?**
 Đáp: Chỉ lưu tên miền của trang **đáng ngờ** để thống kê, tự xóa sau 90 ngày. Trang an toàn chỉ được đếm, không lưu là

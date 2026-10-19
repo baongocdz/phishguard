@@ -79,8 +79,10 @@ def main() -> int:
     check("Dashboard chặn khi sai mã", lambda: (
         c.get("/admin/stats", headers={"X-Admin-Token": "sai-ma"}).status_code == 401, "401"))
     if admin:
-        check("Dashboard với mã quản trị", lambda: (
-            c.get("/admin/stats", headers={"X-Admin-Token": admin}).status_code == 200, "200"))
+        def admin_ok():
+            code = c.get("/admin/stats", headers={"X-Admin-Token": admin}).status_code
+            return code == 200, str(code) + (" — mã quản trị không khớp với server này" if code == 401 else "")
+        check("Dashboard với mã quản trị", admin_ok)
 
     failed = [n for ok, n, _ in results if not ok]
     print(f"\n{len(results) - len(failed)}/{len(results)} đạt." + (f" Lỗi: {', '.join(failed)}" if failed else ""))

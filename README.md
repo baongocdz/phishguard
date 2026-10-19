@@ -7,7 +7,7 @@ Hệ thống phát hiện lừa đảo trực tuyến: **trang web giả mạo (
 
 | Thành phần | Mô tả |
 |---|---|
-| **Chrome extension** ([`extension/`](extension/)) | Tự kiểm tra mọi trang đang mở, hiện banner cảnh báo; cảnh báo khi rê chuột vào link nguy hiểm; quét mã QR trên màn hình; phân tích email đang mở trong Gmail; báo cáo kết quả sai |
+| **Chrome extension** ([`extension/`](extension/)) | Tự kiểm tra mọi trang đang mở, hiện banner cảnh báo; cảnh báo khi rê chuột vào link nguy hiểm; quét mã QR trên màn hình; phân tích email đang mở trong Gmail; chặn chuyển hướng sang trang quảng cáo; báo cáo kết quả sai |
 | **Backend API** ([`backend/`](backend/)) | FastAPI + MongoDB Atlas + Gemini, deploy trên Render |
 | **Trang web kiểm tra** (`/`) | Kiểm tra link, mã QR (ảnh hoặc **camera điện thoại**), email (dán hoặc `.eml`), tin nhắn — không cần cài extension; cài được như ứng dụng (PWA) |
 | **Dashboard quản trị** (`/dashboard`) | Biểu đồ thống kê, cảnh báo gần đây, duyệt báo cáo người dùng, quản lý danh sách đen/trắng |
@@ -45,8 +45,8 @@ Trên tập test 43.808 tên miền của PhiUSIIL (chi tiết, biểu đồ ROC
 | Chỉ ML (n-gram) | 0.882 | 0.758 | 0.816 | 6.3% |
 | **Luật + ML (cách backend dùng)** | **0.986** | **0.641** | **0.776** | **0.6%** |
 
-Trên mẫu 59 tên miền, ML đạt độ chính xác ngang Gemini (0.797) nhưng nhanh hơn ~260.000 lần
-(0.01 ms so với 2.6 s) và không tốn phí — vì vậy Gemini chỉ được gọi khi thật sự cần.
+Trên mẫu 59 tên miền, ML đạt độ chính xác ngang Gemini (0.797) nhưng nhanh hơn ~80.000 lần
+(0.033 ms so với 2.6 s) và không tốn phí — vì vậy Gemini chỉ được gọi khi thật sự cần.
 
 ## Bảo mật và quyền riêng tư
 - Không ghi API key vào code; key nằm trong biến môi trường Render / file `.env` (đã gitignore).
