@@ -11,7 +11,7 @@ from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
 from .email_rules import DOMAIN_IN_TEXT, _domain_of, is_official_and_clean, run_email_rules
 from . import domain_age, ml, safebrowsing, shortlinks, text_ml
-from .heuristics import is_trusted_host, run_heuristics, verdict_of
+from .heuristics import BRANDS, is_trusted_host, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
 log = logging.getLogger("phishguard.service")

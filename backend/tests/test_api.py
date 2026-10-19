@@ -27,6 +27,9 @@ class FakeCollection:
     async def distinct(self, key, flt):
         return list({d.get(key) for d in self.docs if self._match(d, flt)})
 
+    async def count_documents(self, flt):
+        return sum(1 for d in self.docs if self._match(d, flt))
+
     async def delete_many(self, flt):
         self.docs = [d for d in self.docs if not self._match(d, flt)]
 
@@ -99,7 +102,7 @@ import asyncio
 
 import pytest
 
-from app import gemini_client, service
+from app import gemini_client
 from app.config import settings
 from app.gemini_client import GeminiOutput
 
@@ -588,3 +591,12 @@ def test_brands_json_matches_backend():
     from pathlib import Path
     from scripts.export_brands import OUT, data
     assert json.loads(Path(OUT).read_text(encoding="utf-8")) == json.loads(json.dumps(data()))
+
+
+def test_public_stats_for_about_page():
+    """Trang /about dùng API này (từng lỗi 500 vì thiếu import mà không test nào bắt được)."""
+    c, _ = make_client()
+    r = c.get("/public-stats")
+    assert r.status_code == 200
+    s = r.json()
+    assert s["brands"] > 0 and {"total", "phishing", "qr", "email", "blacklist", "whitelist", "metrics"} <= s.keys()

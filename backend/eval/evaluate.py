@@ -186,7 +186,6 @@ def main() -> None:
         ok = [i for i, s in enumerate(g) if s is not None]
         ys = samp["y"].to_numpy()[ok]
         gs = np.array([g[i] for i in ok])
-        idx = samp.index
         rs = np.array([rules_score(h) for h in samp["host"]])[ok]
         ps = lr.predict_proba(vec.transform(samp["host"].map(prepare)))[:, 1][ok]
         sub = [
