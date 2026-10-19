@@ -106,6 +106,10 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
 ### Trang web
 - `/` (`app/web/index.html`, `check.js`): 4 tab Link / Mã QR (tải ảnh, Ctrl+V hoặc **quét bằng camera**; giải mã ngay trên trình duyệt) /
   Email (dán hoặc mở `.eml`) / Tin nhắn. Mỗi tab có nút điền dữ liệu mẫu để demo.
+- **Giao diện (19/10/2026)**: font Be Vietnam Pro (Google Fonts), icon SVG vẽ sẵn trong `index.html` (`<symbol id="i-...">`,
+  `check.js` gọi qua hàm `icon()`), kết quả có vòng điểm + lời khuyên theo mức. `style.css` dùng chung cho cả 3 trang, có chế độ tối.
+  Khi đổi giao diện **giữ nguyên id/class** mà `extension/test/web.mjs` dùng (`#result`, `.tab[data-tab]`, `#result .row .ghost`...)
+  và chạy lại `npm run web-test`.
 - **PWA**: `manifest.webmanifest`, `/sw.js`, icon `icon-*.png` → trên điện thoại "Thêm vào màn hình chính".
   Camera chỉ chạy trên https (Render) hoặc localhost.
 - `/about` (`about.html`): trang giới thiệu để trình bày — số liệu thật, thành phần, luồng 6 bước,
@@ -115,6 +119,7 @@ Sau đó mô hình học máy văn bản (`app/text_ml.py`) cộng tối đa 0.3
   (có tìm kiếm, cuộn).
 
 ### Đánh giá + ML (`backend/eval/`)
+> Bản đầy đủ để viết báo cáo (dataset, làm sạch, bảng kết quả, hạn chế, câu hỏi hội đồng): `docs/DU_LIEU_VA_DANH_GIA.md`.
 - Dataset: **PhiUSIIL** (UCI), tải ở https://archive.ics.uci.edu/dataset/967 (không để trong repo, ~57MB).
 - Chạy lại: `python -m eval.evaluate <file.csv> --gemini 60` → ghi `eval/results/REPORT.md`, ảnh ROC,
   ma trận nhầm lẫn và **ghi đè** `app/ml_model.json`.
