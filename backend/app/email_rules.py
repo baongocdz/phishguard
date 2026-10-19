@@ -47,6 +47,11 @@ def _host(url: str) -> str:
         return ""
 
 
+def _official_host(host: str) -> bool:
+    """Tên miền chính thức của một thương hiệu trong BRANDS (google.com, vietcombank.com.vn...)."""
+    return any(_is_official(host, official) for official in BRANDS.values())
+
+
 def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     t = Tally()
     sender_domain = _domain_of(req.sender)
@@ -75,7 +80,9 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
         shown = DOMAIN_IN_TEXT.search(link.text.lower())
         if mismatch is None and shown and _base(shown.group(1)) != _base(href_host):
             mismatch = (shown.group(1), href_host)
-        if risky is None:
+        # Link về đúng trang chính thức (accounts.google.com/...?Email=a@b) không xét như trang lạ:
+        # luật trang web sẽ thấy "@" và từ "account" rồi báo nhầm.
+        if risky is None and not _official_host(href_host):
             r = run_heuristics(AnalyzeRequest(
                 url=link.href, hostname=href_host,
                 protocol=(urlsplit(link.href).scheme or "http") + ":",
@@ -88,7 +95,14 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
         t.add(0.3 if risky[1].verdict == "phishing" else 0.15, f"Email chứa link đáng ngờ: {risky[0]}.")
 
     # 4. Nội dung: hối thúc, đòi thông tin nhạy cảm, mồi trúng thưởng.
-    text = _strip_accents(f"{req.subject}\n{req.body}")
+    #    Thư từ tên miền chính thức mà link đều sạch (thông báo bảo mật của Google, ngân hàng)
+    #    thì chữ "cảnh báo", "OTP" là bình thường, không cộng điểm. Thư giả mạo người gửi mà
+    #    kèm link lạ vẫn bị bắt ở bước 3.
+    if sender_domain and _official_host(sender_domain) and not t.score:
+        t.add(0.0, f"Gửi từ tên miền chính thức ({sender_domain}), người gửi và link không có dấu hiệu giả mạo.")
+        return AnalyzeResponse(verdict="safe", score=0.0, reasons=t.reasons, source="email",
+                               breakdown=t.signals)
+    text =_strip_accents(f"{req.subject}\n{req.body}")
     if any(w in text for w in URGENCY):
         t.add(0.15, "Nội dung hối thúc hoặc đe dọa (khóa tài khoản, hết hạn...).")
     if any(w in text for w in SENSITIVE):

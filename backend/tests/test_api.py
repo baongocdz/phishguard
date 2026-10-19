@@ -346,6 +346,33 @@ def test_text_model_flags_english_phishing_and_skips_unknown_language():
     assert text_ml.predict("Tai khoan bi khoa, nhap ma OTP") is None  # quá ít từ mô hình biết
 
 
+# Thư bảo mật thật của Google (tiếng Việt) từng bị chấm lừa đảo: mô hình tiếng Anh đọc
+# tiếng Việt có dấu bị cắt vụn, link accounts.google.com?Email=a@b bị coi là lạ, chữ "Cảnh báo".
+GOOGLE_ALERT_BODY = (
+    "Mới đăng nhập trên Windows. Chúng tôi phát hiện thấy có một yêu cầu đăng nhập mới vào Tài khoản Google "
+    "của bạn trên một thiết bị Windows. Nếu đây không phải là yêu cầu của bạn, thì chúng tôi sẽ giúp bạn bảo mật "
+    "tài khoản. Kiểm tra hoạt động. © 2026 Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA")
+GOOGLE_ALERT_LINK = EmailLink(text="Kiểm tra hoạt động",
+                              href="https://accounts.google.com/AccountChooser?Email=a.b@gmail.com&continue=x")
+
+
+def test_text_model_skips_vietnamese_with_diacritics():
+    assert text_ml.predict(GOOGLE_ALERT_BODY) is None
+
+
+def test_real_google_security_alert_is_safe():
+    r = run_email_rules(EmailRequest(sender="Google <no-reply@accounts.google.com>", subject="Cảnh báo bảo mật",
+                                     body=GOOGLE_ALERT_BODY, links=[GOOGLE_ALERT_LINK]))
+    assert r.verdict == "safe" and r.score == 0
+
+
+def test_official_sender_with_foreign_link_is_still_flagged():
+    r = run_email_rules(EmailRequest(
+        sender="Google <no-reply@accounts.google.com>", subject="Cảnh báo bảo mật", body=GOOGLE_ALERT_BODY,
+        links=[EmailLink(text="Kiểm tra hoạt động", href="https://google-account-verify.top/login")]))
+    assert r.verdict != "safe"
+
+
 def test_email_endpoint_adds_text_ml_signal():
     c, _ = make_client()
     body = ("Congratulations! You have won a 1000 dollar gift card. Claim your prize now by replying "

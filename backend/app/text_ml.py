@@ -12,6 +12,11 @@ from pathlib import Path
 MODEL_PATH = Path(__file__).with_name("text_model.json")
 WORD_RE = re.compile(r"[a-z0-9']+")
 MIN_KNOWN = 12  # cần ít nhất chừng này từ/cặp từ có trong mô hình mới tin kết quả
+# Tiếng Việt có dấu bị WORD_RE cắt vụn ("chúng" -> "ch", "ng") thành mảnh trùng từ tiếng Anh,
+# nên vượt được MIN_KNOWN mà điểm vô nghĩa (thư bảo mật thật của Google bị chấm 98%).
+# Văn bản có nhiều từ mang dấu tiếng Việt thì bỏ qua hẳn.
+VI_WORD_RE = re.compile(r"\w*[àáảãạăắằẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]\w*")
+VI_RATIO = 0.1
 
 _model: dict | None = None
 _loaded = False
@@ -23,6 +28,12 @@ def features(text: str) -> list[str]:
     grams = set(words)
     grams.update(f"{a} {b}" for a, b in zip(words, words[1:]))
     return sorted(grams)
+
+
+def is_vietnamese(text: str) -> bool:
+    lower = text.lower()
+    words = re.findall(r"\w+", lower)
+    return bool(words) and len(VI_WORD_RE.findall(lower)) / len(words) >= VI_RATIO
 
 
 def reload(path: Path = MODEL_PATH) -> None:
@@ -38,7 +49,7 @@ def predict(text: str) -> float | None:
     """Xác suất là lừa đảo (0..1), hoặc None nếu chưa có mô hình / văn bản quá lạ với mô hình."""
     if not _loaded:
         reload()
-    if _model is None or not text.strip():
+    if _model is None or not text.strip() or is_vietnamese(text):
         return None
     weights = _model["weights"]
     known = [weights[g] for g in features(text) if g in weights]
