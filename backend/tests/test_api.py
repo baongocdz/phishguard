@@ -321,6 +321,12 @@ def test_lookalike_domains_are_flagged(host):
     assert r.verdict != "safe" and "na ná" in r.reasons[0]
 
 
+@pytest.mark.parametrize("host", ["q.me-qr.com", "qrco.de"])
+def test_dynamic_qr_redirect_is_opened(host):
+    # Mã QR động chỉ chứa link trung gian của trang tạo QR → phải mở ra xem đích thật.
+    assert shortlinks.is_shortener(host)
+
+
 def test_short_link_is_expanded_and_target_checked(monkeypatch):
     async def fake_expand(url):
         return "https://secure-vietcombank-xacminh.top/login"

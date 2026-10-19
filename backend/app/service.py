@@ -19,7 +19,7 @@ log = logging.getLogger("phishguard.service")
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 # Tăng khi đổi cách chấm hoặc định dạng kết quả để bỏ qua kết quả cũ trong cache
 # (v2: có breakdown, tên miền na ná, Safe Browsing, mạng nội bộ).
-CACHE_VERSION = "v6"
+CACHE_VERSION = "v7"
 
 
 # Đuôi chỉ cơ quan nhà nước / trường học mới đăng ký được (VNNIC cấp có kiểm tra): mô hình học máy học từ tên miền

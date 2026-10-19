@@ -15,6 +15,8 @@ SHORTENERS = {
     "bit.ly", "bitly.com", "tinyurl.com", "t.co", "goo.gl", "is.gd", "v.gd", "cutt.ly", "rb.gy",
     "shorturl.at", "s.id", "tiny.cc", "t.ly", "ow.ly", "buff.ly", "rebrand.ly", "bl.ink",
     "short.io", "tiny.one", "bom.so", "urlgon.com", "lnkd.in", "shorte.st", "1url.vn", "rutgon.me",
+    # Mã QR động: trong mã chỉ có link trung gian của trang tạo QR, mở ra mới thấy đích thật (quishing hay dùng).
+    "q.me-qr.com", "qrco.de", "qr.codes", "l.ead.me", "qr1.be", "qrfy.io", "qr.page",
 }
 # Link qua hệ thống theo dõi lượt bấm của dịch vụ gửi thư / quảng bá ứng dụng: bản tin hợp lệ nào cũng dùng
 # (chữ "tiki.vn" trỏ tới u123.ct.sendgrid.net). Mở ra như link rút gọn để biết đích thật.
