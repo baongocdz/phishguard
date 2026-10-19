@@ -5,7 +5,7 @@
 // Nút quét QR: chụp màn hình cần quyền activeTab (có khi người dùng bấm icon, Puppeteer không bấm được) → test chạy
 // trên BẢN SAO dist-e2e/ có thêm quyền <all_urls>; bản phát hành (dist/) giữ nguyên quyền.
 import http from "node:http";
-import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
@@ -17,6 +17,15 @@ cpSync(join(ROOT, "dist"), DIST, { recursive: true });
 const testManifest = JSON.parse(readFileSync(join(DIST, "manifest.json"), "utf8"));
 testManifest.host_permissions.push("<all_urls>");
 writeFileSync(join(DIST, "manifest.json"), JSON.stringify(testManifest, null, 2));
+// E2E_API=http://localhost:8000: bản test gọi backend ở máy thay vì Render (chạy backend đó với Gemini tắt để
+// không tốn hạn mức Gemini — gói Free có model chỉ 20 lượt/ngày; test cũng nhanh và ổn định hơn).
+if (process.env.E2E_API) {
+  for (const f of readdirSync(DIST).filter((n) => n.endsWith(".js"))) {
+    const file = join(DIST, f);
+    writeFileSync(file, readFileSync(file, "utf8").replaceAll("https://phishguard-backend-g3w0.onrender.com", process.env.E2E_API));
+  }
+  console.log(`(backend: ${process.env.E2E_API})`);
+}
 const PORT = 5517;
 const BASE = `http://127.0.0.1:${PORT}`; // địa chỉ IP: trang đăng nhập giả bị chấm nghi ngờ
 const SAFE = `http://localhost:${PORT}`; // tên máy thường: trang sạch không bị chấm

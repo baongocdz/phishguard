@@ -600,3 +600,30 @@ def test_public_stats_for_about_page():
     assert r.status_code == 200
     s = r.json()
     assert s["brands"] > 0 and {"total", "phishing", "qr", "email", "blacklist", "whitelist", "metrics"} <= s.keys()
+
+
+def test_gemini_quota_exhausted_pauses_calls(monkeypatch):
+    """Hết hạn mức (429): đọc thời gian chờ Google báo, tạm ngừng gọi Gemini tới lúc đó."""
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-key")
+    monkeypatch.setattr(gemini_client, "_paused_until", 0.0)
+    calls = []
+
+    async def quota(prompt, system=None):
+        calls.append(prompt)
+        raise RuntimeError("429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Please retry in 18h11m57.7s.', "
+                           "'details': [{'retryDelay': '65517s'}]}}")
+
+    monkeypatch.setattr(gemini_client, "_call_model", quota)
+    req = AnalyzeRequest(**login_page())
+    assert asyncio.run(gemini_client.classify_with_gemini(req)) is None
+    assert asyncio.run(gemini_client.classify_with_gemini(req)) is None
+    assert len(calls) == 1  # lần thứ hai không gọi nữa
+    assert "tạm ngừng" in gemini_client.status()
+    assert 65000 < gemini_client._paused_until - __import__("time").time() <= 65517
+    c, _ = make_client()
+    assert "tạm ngừng" in c.get("/health").json()["gemini"]
+
+
+def test_retry_after_parsing():
+    assert gemini_client._retry_after("Please retry in 18h11m57.6s.") == 18 * 3600 + 11 * 60 + 57.6
+    assert gemini_client._retry_after("no hint") == 60.0

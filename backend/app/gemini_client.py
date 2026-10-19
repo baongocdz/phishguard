@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import re
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from google import genai
@@ -127,12 +130,49 @@ async def classify_email(req: EmailRequest) -> GeminiOutput | None:
     return await _classify(_call_model(build_email_prompt(req), EMAIL_SYSTEM_PROMPT))
 
 
+# Hết hạn mức (429 RESOURCE_EXHAUSTED): Google báo phải chờ bao lâu (gói Free có model chỉ 20 lượt/ngày, làm mới lúc
+# 0 giờ giờ Thái Bình Dương). Trong lúc đó không gọi nữa: đỡ chờ lỗi ở mỗi yêu cầu và log không ngập lỗi.
+_paused_until = 0.0  # time.time()
+_RETRY_SECONDS = re.compile(r"retryDelay'?\"?:\s*'?\"?(\d+)s")
+_RETRY_TEXT = re.compile(r"retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?")
+
+
+def _retry_after(message: str) -> float:
+    """Số giây Google yêu cầu chờ (đọc từ thông báo lỗi 429); không đọc được thì chờ 60 giây."""
+    if m := _RETRY_SECONDS.search(message):
+        return float(m.group(1))
+    if (m := _RETRY_TEXT.search(message)) and any(m.groups()):
+        h, mi, s = (float(x or 0) for x in m.groups())
+        return h * 3600 + mi * 60 + s
+    return 60.0
+
+
+def status() -> str:
+    """Trạng thái lớp AI cho /health: on | off (chưa có key) | paused until <giờ>."""
+    if not settings.gemini_api_key:
+        return "off (chưa cấu hình API key)"
+    if time.time() < _paused_until:
+        until = datetime.fromtimestamp(_paused_until, timezone(timedelta(hours=7))).strftime("%H:%M %d/%m (giờ VN)")
+        return f"tạm ngừng tới {until} (hết hạn mức Gemini)"
+    return f"on ({settings.gemini_model})"
+
+
 async def _classify(call) -> GeminiOutput | None:
+    global _paused_until
+    if time.time() < _paused_until:
+        call.close()  # coroutine chưa chạy: đóng lại, không gọi Gemini
+        return None
     try:
         text = await asyncio.wait_for(call, timeout=settings.gemini_timeout_seconds)
         return GeminiOutput.model_validate_json(text)
     except (ValidationError, ValueError) as e:
         log.warning("Gemini trả về dữ liệu không hợp lệ: %s", e)
     except Exception as e:  # lỗi mạng, 429, timeout, sai key/model...
-        log.warning("Gọi Gemini thất bại (%s): %s", type(e).__name__, e)
+        message = str(e)
+        if "429" in message or "RESOURCE_EXHAUSTED" in message:
+            wait = min(_retry_after(message), 24 * 3600)
+            _paused_until = time.time() + wait
+            log.warning("Gemini hết hạn mức: tạm ngừng gọi %.0f phút (%s).", wait / 60, status())
+        else:
+            log.warning("Gọi Gemini thất bại (%s): %s", type(e).__name__, message[:300])
     return None

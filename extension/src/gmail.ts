@@ -6,6 +6,9 @@ import type { AnalysisResult, EmailInfo, ExtMessage } from "./types";
 
 const BANNER_CLASS = "phishguard-email-banner";
 const analyzed = new Map<string, AnalysisResult | null>();
+// Phân tích thất bại (máy chủ bận / giới hạn lượt gọi / mất mạng): lùi thời gian thử lại 15 s → 30 s → … tối đa 2 phút.
+// Không lùi thì cứ 0,6 s lại gửi một lần → bị giới hạn lượt gọi (429) mãi không thoát ra được.
+const failed = new Map<string, { until: number; delay: number }>();
 
 async function enabled(): Promise<boolean> {
   const { gmailScan } = await chrome.storage.local.get("gmailScan");
@@ -68,6 +71,11 @@ function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
   return box;
 }
 
+function showRetry(anchor: HTMLElement, until: number): void {
+  const s = Math.max(1, Math.round((until - Date.now()) / 1000));
+  bannerShell(anchor, "loading").textContent = `🛡️ PhishGuard chưa kiểm tra được email này (máy chủ bận hoặc mất mạng), sẽ thử lại sau ${s} giây.`;
+}
+
 function showLoading(anchor: HTMLElement): void {
   bannerShell(anchor, "loading").textContent = "🛡️ PhishGuard đang kiểm tra email này…";
 }
@@ -99,6 +107,11 @@ async function check(): Promise<void> {
   if (!(await enabled())) return;
   const mail = readOpenEmail();
   if (!mail) return;
+  const fail = failed.get(mail.key);
+  if (fail && Date.now() < fail.until) {
+    if (!hasBanner()) showRetry(mail.anchor, fail.until);
+    return;
+  }
   if (analyzed.has(mail.key)) {
     const r = analyzed.get(mail.key);
     if (r && !hasBanner()) showBanner(mail.anchor, r);
@@ -110,10 +123,13 @@ async function check(): Promise<void> {
     { type: "ANALYZE_EMAIL", payload: mail.info, pageUrl: location.href } satisfies ExtMessage,
   ).catch(() => null);
   if (!r) {
-    analyzed.delete(mail.key); // lỗi mạng: lần sau thử lại
-    document.querySelectorAll(`.${BANNER_CLASS}`).forEach((b) => b.remove());
+    analyzed.delete(mail.key); // thử lại sau, không thử ngay
+    const delay = Math.min((fail?.delay ?? 7500) * 2, 120_000);
+    failed.set(mail.key, { until: Date.now() + delay, delay });
+    if (readOpenEmail()?.key === mail.key) showRetry(mail.anchor, Date.now() + delay);
     return;
   }
+  failed.delete(mail.key);
   analyzed.set(mail.key, r);
   // Người dùng đã chuyển sang thư khác trong lúc chờ: không gắn kết quả vào nhầm thư.
   if (readOpenEmail()?.key === mail.key) showBanner(mail.anchor, r);

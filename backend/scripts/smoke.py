@@ -45,7 +45,11 @@ def main() -> int:
         return r["verdict"] in expect, f"{r['verdict']} {r['score']} ({r['source']})"
 
     print(f"Kiểm tra {base}\n")
-    check("Server sống (/health)", lambda: (c.get("/health").json() == {"status": "ok"}, "ok"))
+    def health():
+        h = c.get("/health").json()
+        # Gemini tạm ngừng (hết hạn mức) vẫn tính là đạt: hệ thống tự dùng luật + học máy. Chỉ in ra để biết.
+        return h.get("status") == "ok", f"ok · AI Gemini: {h.get('gemini', '(bản cũ, chưa báo)')}"
+    check("Server sống (/health)", health)
     for path in ("/", "/about", "/dashboard", "/docs", "/eval/roc.png"):
         check(f"Trang {path}", lambda p=path: (c.get(p).status_code == 200, str(c.get(p).status_code)))
     check("Trang thật (vnexpress.net) → an toàn", lambda: analyze("https://vnexpress.net/", {"safe"}))

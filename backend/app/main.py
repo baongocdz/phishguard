@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pymongo import ASCENDING, DESCENDING, AsyncMongoClient
 
-from . import admin, service, threatfeeds
+from . import admin, gemini_client, service, threatfeeds
 from .config import settings
 from .deps import get_db
 from .rate_limit import client_ip, limit_by_ip
@@ -72,7 +72,8 @@ if EVAL_DIR.is_dir():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    # "gemini": lớp AI có đang chạy không (hết hạn mức thì tạm ngừng) — xem trước khi demo.
+    return {"status": "ok", "gemini": gemini_client.status()}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(limit_by_ip)])
