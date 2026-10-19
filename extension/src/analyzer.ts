@@ -1,4 +1,4 @@
-import { API_BASE, API_TIMEOUT_MS } from "./config";
+import { API_BASE, API_TIMEOUT_MS, EMAIL_TIMEOUT_MS } from "./config";
 import type { AnalysisResult, EmailInfo, PageInfo, ReportInfo } from "./types";
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
@@ -21,7 +21,7 @@ const BRANDS: Record<string, string[]> = {
   microsoft: ["microsoft.com", "microsoftonline.com", "live.com", "office.com"],
   office365: ["office365.com", "office.com", "microsoft.com"],
   outlook: ["outlook.com", "live.com", "office.com", "office365.com"],
-  google: ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com"],
+  google: ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle"],
   gmail: ["gmail.com", "google.com"],
   facebook: ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
   instagram: ["instagram.com"],
@@ -193,12 +193,12 @@ export async function analyze(info: PageInfo): Promise<AnalysisResult> {
     return analyzeLocal(info);
   }
 }
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(path: string, body: unknown, timeoutMs = API_TIMEOUT_MS): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(String(res.status));
   return (await res.json()) as T;
@@ -207,7 +207,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 /** Phân tích email/tin nhắn. Không có bộ luật email cục bộ nên lỗi thì trả null. */
 export async function analyzeEmail(email: EmailInfo): Promise<AnalysisResult | null> {
   try {
-    return await postJson<AnalysisResult>("/analyze-email", email);
+    return await postJson<AnalysisResult>("/analyze-email", email, EMAIL_TIMEOUT_MS);
   } catch {
     return null;
   }

@@ -37,7 +37,7 @@ BRANDS: dict[str, list[str]] = {
     "microsoft": ["microsoft.com", "microsoftonline.com", "live.com", "office.com"],
     "office365": ["office365.com", "office.com", "microsoft.com"],
     "outlook": ["outlook.com", "live.com", "office.com", "office365.com"],
-    "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com"],
+    "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle"],
     "gmail": ["gmail.com", "google.com"],
     "facebook": ["facebook.com", "fb.com", "facebook.net", "fbcdn.net"],
     "instagram": ["instagram.com"],

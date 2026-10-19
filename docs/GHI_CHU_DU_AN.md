@@ -151,7 +151,7 @@ Khóa cache email gồm cả danh sách link.
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc | 67 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc, link chính chủ Google | 69 |
 | Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ** + URL `utm_medium=…popup…`), affiliate, "Mở lần này", công tắc, popup, **Gmail giả lập** (cả mở thư khác không F5), **tab-under, cửa sổ nhỏ**, không chặn nhầm Back/form | 29 |
 | Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
@@ -160,7 +160,7 @@ Khóa cache email gồm cả danh sách link.
   Test trình duyệt (e2e, web-test) chỉ chạy ở máy (dùng Chrome for Testing do Puppeteer tải về `~/.cache/puppeteer`).
 - Thêm `HEADFUL=1` trước lệnh e2e/web-test để xem trình duyệt chạy.
 
-- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **67 test**, không cần MongoDB
+- Backend: `cd backend && .venv\Scripts\python -m pytest -q` → **69 test**, không cần MongoDB
   (dùng DB giả; `tests/conftest.py` chặn gọi Gemini và Safe Browsing thật).
 - **Kiểm tra server thật trước demo:** `cd backend` → `.venv\Scripts\python -m scripts.smoke`
   (thêm `--admin <mã>` để thử dashboard; truyền `http://localhost:8000` để thử bản ở máy).
@@ -207,6 +207,8 @@ Khóa cache email gồm cả danh sách link.
 | Đổi giao diện xong, trên Render thấy icon thành khối đen to, trang vỡ | Trình duyệt giữ `style.css` cũ (server không gửi `Cache-Control` → trình duyệt tự giữ hàng giờ), ghép với HTML mới | Middleware gửi `Cache-Control: no-cache` cho trang + `/static/*`; link CSS/JS có `?v=N` — **tăng N mỗi khi sửa CSS/JS** (cả trong `sw.js`). Người đã bị thì bấm Ctrl+F5 |
 | Thư bảo mật **thật** của Google (tiếng Việt) bị chấm lừa đảo 0.6 | (1) Mô hình email tiếng Anh cắt vụn tiếng Việt có dấu ("chúng" → "ch","ng") thành mảnh trùng từ tiếng Anh, vượt ngưỡng 12 từ → 98%; (2) link `accounts.google.com/...?Email=a@b` bị luật trang web coi là lạ (có `@`, "account"); (3) chữ "Cảnh báo" | `text_ml.is_vietnamese` bỏ qua văn bản ≥10% từ có dấu; link về tên miền chính chủ không xét; người gửi chính chủ + link sạch → bỏ qua từ khóa nội dung. `CACHE_VERSION` → v3. Thư giả (người gửi đúng nhưng link lạ, hoặc tên miền nhái) vẫn bị bắt — có test |
 | Web phim lậu vẫn bật tab quảng cáo (yo88.town) | Chỉ chặn theo danh sách 42 mạng quảng cáo; mạng lạ lọt. Trang thử cũng chỉ dùng mạng có trong danh sách nên test không thấy | Thêm phát hiện theo hành vi (`popunder.ts`) + luật `utm_medium=popunder`; test e2e dùng mạng **không** có trong danh sách |
+| Thư thật của Google "Bạn đã chia sẻ dữ liệu với tdmu.edu.vn" bị báo đáng ngờ 55 | Chữ `tdmu.edu.vn` trỏ tới `c.gle` (link rút gọn của Google) → luật "link hiển thị khác link thật" | Thêm `c.gle`, `g.co`, `goo.gle` vào tên miền chính chủ Google (backend + extension); link về tên miền chính chủ không xét "hiển thị khác thật". Chống lách: link chính chủ mang địa chỉ đích lạ (`google.com/url?q=https://lua-dao…`) thì xét địa chỉ đích (`_real_target`). `CACHE_VERSION` → v5 |
+| Gmail đôi khi kẹt ở "đang kiểm tra" | Extension chờ 8 s, server hỏi Gemini có thể tới 10 s | Email chờ 25 s (`EMAIL_TIMEOUT_MS`); thư chính chủ không hỏi Gemini |
 | Gmail: mở thư khác (không F5) thì không có thanh kết quả | (1) Chờ DOM "đứng yên" 0,8 s mới kiểm tra, nhưng Gmail đổi DOM gần như liên tục → không bao giờ tới; (2) Gmail giữ DOM thư cũ (ẩn) → `querySelector("h2.hP")` lấy nhầm tiêu đề thư cũ | Kiểm tra tối đa mỗi 0,6 s + khi `hashchange`; chỉ dùng tiêu đề/thanh **đang hiển thị**; kết quả về muộn mà người dùng đã sang thư khác thì không gắn nhầm. Test e2e "mở thư 1, quay ra, mở thư 2" (bản cũ hỏng, bản mới đạt) |
 | Bộ nhớ đệm email trả nhầm kết quả | Khóa cache email = người gửi + tiêu đề + nội dung, **thiếu link** → cùng nội dung thay link lừa đảo vẫn nhận "an toàn" đã lưu | Đưa danh sách link vào khóa. (Phát hiện nhờ test "thư chính chủ không hỏi Gemini") |
 | Gmail: server đã chấm email (có trong `events`) nhưng không thấy thanh kết quả, popup báo "Mở một email…" | Thanh chèn trên nội dung thư cuối của thread dài → bị cuộn khuất; popup so URL đầy đủ với `sender.url` | Thanh đặt **ngay dưới tiêu đề** (`h2.hP`); gmail.ts gửi kèm `location.href`, popup so theo **mã thư** cuối `#…/<id>`; kiểm tra ngay khi script chạy; bỏ link > 2048 ký tự (server từ chối cả email). Có test e2e Gmail giả lập |

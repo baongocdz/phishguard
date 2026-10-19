@@ -537,3 +537,24 @@ def test_official_clean_email_skips_gemini(monkeypatch):
     body["links"] = [{"text": "Kiểm tra hoạt động", "href": "http://tracking-mail.xyz/a"}]  # đáng ngờ, chưa tới mức lừa đảo
     c.post("/analyze-email", json=body)
     assert len(calls) == 1
+
+
+def test_google_sign_in_notice_with_c_gle_link_is_safe():
+    """Thư 'Bạn đã chia sẻ dữ liệu với tdmu.edu.vn' của Google: chữ tdmu.edu.vn trỏ tới c.gle (link rút gọn của Google)."""
+    r = run_email_rules(EmailRequest(
+        sender="Google <noreply-accounts@google.com>",
+        subject="Bạn đã chia sẻ một số dữ liệu trong Tài khoản Google với tdmu.edu.vn",
+        body="Chúng tôi gửi cho bạn email này vì bạn đã dùng tính năng Đăng nhập bằng Google để đăng nhập vào tdmu.edu.vn.",
+        links=[EmailLink(text="tdmu.edu.vn", href="https://c.gle/ANiao5rQabc"),
+               EmailLink(text="Truy cập Tài khoản Google", href="https://myaccount.google.com/connections")]))
+    assert r.verdict == "safe" and r.score == 0
+
+
+def test_google_open_redirect_to_phishing_is_still_flagged():
+    """Kẻ gian mượn trang chuyển hướng của Google: google.com/url?q=<trang lừa đảo>."""
+    r = run_email_rules(EmailRequest(
+        sender="Google <no-reply@accounts.google.com>", subject="Cảnh báo bảo mật", body="Kiểm tra hoạt động ngay.",
+        links=[EmailLink(text="https://myaccount.google.com",
+                         href="https://www.google.com/url?q=https://g00gle-verify-account.top/login&sa=D")]))
+    assert r.verdict != "safe"
+    assert any("g00gle-verify-account.top" in x for x in r.reasons)

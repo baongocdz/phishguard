@@ -1,7 +1,7 @@
 """Luật phát hiện email lừa đảo. Chạy trước Gemini, giống run_heuristics cho trang web."""
 import re
 import unicodedata
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .domains import registrable_domain
 from .heuristics import BRANDS, Tally, _is_official, _tokens, run_heuristics, verdict_of
@@ -60,6 +60,22 @@ def _official_host(host: str) -> bool:
     return any(_is_official(host, official) for official in BRANDS.values())
 
 
+def _real_target(href: str) -> str:
+    """Link chính chủ mà mang theo địa chỉ đích KHÔNG chính chủ (google.com/url?q=https://lua-dao...: kẻ gian
+    hay mượn trang chuyển hướng của Google) thì xét địa chỉ đích đó."""
+    if not _official_host(_host(href)):
+        return href
+    try:
+        params = parse_qs(urlsplit(href).query)
+    except ValueError:
+        return href
+    for values in params.values():
+        for v in values:
+            if v.lower().startswith(("http://", "https://")) and _host(v) and not _official_host(_host(v)):
+                return v
+    return href
+
+
 def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     t = Tally()
     sender_domain = _domain_of(req.sender)
@@ -82,18 +98,22 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     #    hoặc bản thân link trông như trang lừa đảo.
     mismatch = risky = None
     for link in req.links:
-        href_host = _host(link.href)
+        href = _real_target(link.href)
+        href_host = _host(href)
         if not href_host:
+            continue
+        # Link về đúng trang chính thức thì không lừa được ai: Google, ngân hàng hay dẫn link qua hệ thống
+        # chuyển hướng của chính họ (chữ "tdmu.edu.vn" trỏ tới c.gle của Google), và luật trang web sẽ thấy
+        # "@", "account" trong accounts.google.com/...?Email=a@b rồi báo nhầm.
+        if _official_host(href_host):
             continue
         shown = DOMAIN_IN_TEXT.search(link.text.lower())
         if mismatch is None and shown and _base(shown.group(1)) != _base(href_host):
             mismatch = (shown.group(1), href_host)
-        # Link về đúng trang chính thức (accounts.google.com/...?Email=a@b) không xét như trang lạ:
-        # luật trang web sẽ thấy "@" và từ "account" rồi báo nhầm.
-        if risky is None and not _official_host(href_host):
+        if risky is None:
             r = run_heuristics(AnalyzeRequest(
-                url=link.href, hostname=href_host,
-                protocol=(urlsplit(link.href).scheme or "http") + ":",
+                url=href, hostname=href_host,
+                protocol=(urlsplit(href).scheme or "http") + ":",
             ))
             if r.verdict != "safe":
                 risky = (href_host, r)
