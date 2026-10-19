@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PhishGuard – Kiểm tra lừa đảo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#2453d6">
@@ -11,74 +14,134 @@
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 </head>
 <body>
+<!-- Bộ icon dùng chung (check.js cũng gọi tới các id này) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4h13l-2 4 2 4H4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
+
 <header class="top">
-  <div class="brand">🛡️ PhishGuard</div>
+  <a class="brand" href="/"><span class="logo"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>PhishGuard</a>
   <nav><a href="/" class="active">Kiểm tra</a><a href="/dashboard">Quản trị</a><a href="/about">Giới thiệu</a><a href="/docs">API</a></nav>
 </header>
 
-<main class="wrap">
-  <section class="hero">
-    <h1>Kiểm tra link, mã QR, email và tin nhắn lừa đảo</h1>
-    <p>Kết hợp danh sách đen/trắng, bộ luật nhận diện giả mạo thương hiệu và AI (Gemini) để phát hiện phishing, quishing và email/SMS lừa đảo.</p>
-  </section>
-
-  <div class="tabs" role="tablist">
-    <button class="tab active" data-tab="url">🔗 Link</button>
-    <button class="tab" data-tab="qr">▦ Mã QR</button>
-    <button class="tab" data-tab="email">✉️ Email</button>
-    <button class="tab" data-tab="sms">💬 Tin nhắn</button>
+<section class="hero">
+  <span class="eyebrow"><span class="dot"></span>Miễn phí · Không cần đăng nhập</span>
+  <h1>Kiểm tra link, mã QR, email và tin nhắn lừa đảo</h1>
+  <p>Dán thứ bạn đang nghi ngờ vào bên dưới. PhishGuard đối chiếu danh sách lừa đảo, bộ luật nhận diện giả mạo thương hiệu, học máy và AI Gemini, rồi giải thích rõ vì sao.</p>
+  <div class="trust">
+    <span><svg class="icon"><use href="#i-layers"/></svg>Nhiều lớp kiểm tra</span>
+    <span><svg class="icon"><use href="#i-search"/></svg>Giải thích từng lý do</span>
+    <span><svg class="icon"><use href="#i-lock"/></svg>Không lưu nội dung email, tin nhắn</span>
   </div>
+</section>
 
-  <section class="panel" id="tab-url">
-    <label for="url-input">Dán đường link cần kiểm tra</label>
-    <div class="row">
-      <input id="url-input" placeholder="https://vi-du.com/dang-nhap" autocomplete="off">
-      <button class="primary" id="url-btn">Kiểm tra</button>
+<main class="checker-wrap">
+  <div class="checker">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="url"><svg class="icon"><use href="#i-link"/></svg>Link</button>
+      <button class="tab" data-tab="qr"><svg class="icon"><use href="#i-qr"/></svg>Mã QR</button>
+      <button class="tab" data-tab="email"><svg class="icon"><use href="#i-mail"/></svg>Email</button>
+      <button class="tab" data-tab="sms"><svg class="icon"><use href="#i-msg"/></svg>Tin nhắn</button>
     </div>
-    <p class="hint">Thử: <a href="#" class="sample" data-url="https://secure-vietcombank-xacminh.top/login">secure-vietcombank-xacminh.top</a> · <a href="#" class="sample" data-url="https://faceb00k-security-check.com/recover">faceb00k-security-check.com</a> · <a href="#" class="sample" data-url="https://github.com/login">github.com</a></p>
-  </section>
 
-  <section class="panel hidden" id="tab-qr">
-    <label>Tải lên ảnh có mã QR (ảnh chụp hoặc ảnh chụp màn hình)</label>
-    <div class="drop" id="qr-drop">
-      <input type="file" id="qr-file" accept="image/*">
-      <p>Kéo thả ảnh vào đây, bấm để chọn, hoặc <b>Ctrl+V</b> để dán ảnh</p>
-    </div>
-    <div class="row">
-      <button class="primary" id="cam-btn">📷 Quét bằng camera</button>
-      <button class="ghost hidden" id="cam-stop">Dừng camera</button>
-      <span class="muted" id="cam-status"></span>
-    </div>
-    <div class="cam hidden" id="cam-box"><video id="cam-video" playsinline muted></video><div class="cam-frame"></div></div>
-    <canvas id="qr-canvas" class="hidden"></canvas>
-    <p class="hint">Quishing = lừa đảo bằng mã QR: mã dán ở bãi xe, hóa đơn, email… dẫn tới trang giả mạo. Ảnh và hình camera được giải mã ngay trên trình duyệt, không tải lên máy chủ. Trên điện thoại có thể "Thêm vào màn hình chính" để dùng như ứng dụng.</p>
-  </section>
+    <section class="panel" id="tab-url">
+      <label for="url-input">Dán đường link cần kiểm tra</label>
+      <div class="row" style="margin-top:0">
+        <div class="input-icon"><svg class="icon"><use href="#i-link"/></svg><input id="url-input" placeholder="https://vi-du.com/dang-nhap" autocomplete="off" inputmode="url"></div>
+        <button class="primary big" id="url-btn"><svg class="icon"><use href="#i-search"/></svg>Kiểm tra</button>
+      </div>
+      <div class="samples">Thử nhanh:
+        <a href="#" class="sample" data-url="https://secure-vietcombank-xacminh.top/login"><i></i>secure-vietcombank-xacminh.top</a>
+        <a href="#" class="sample" data-url="https://faceb00k-security-check.com/recover"><i></i>faceb00k-security-check.com</a>
+        <a href="#" class="sample ok" data-url="https://github.com/login"><i></i>github.com</a>
+      </div>
+    </section>
 
-  <section class="panel hidden" id="tab-email">
-    <div class="grid2">
-      <div><label for="em-from">Người gửi</label><input id="em-from" placeholder="Vietcombank &lt;no-reply@vcb-thongbao.com&gt;"></div>
-      <div><label for="em-reply">Reply-To (nếu có)</label><input id="em-reply" placeholder="(không bắt buộc)"></div>
-    </div>
-    <label for="em-subject">Tiêu đề</label><input id="em-subject">
-    <label for="em-body">Nội dung (có thể dán cả link)</label>
-    <textarea id="em-body" rows="8"></textarea>
-    <div class="row">
-      <button class="primary" id="em-btn">Phân tích email</button>
-      <label class="file-btn">Mở file .eml<input type="file" id="em-file" accept=".eml,message/rfc822"></label>
-      <a href="#" id="em-sample">Điền email mẫu</a>
-    </div>
-  </section>
+    <section class="panel hidden" id="tab-qr">
+      <div class="drop" id="qr-drop">
+        <input type="file" id="qr-file" accept="image/*" aria-label="Chọn ảnh có mã QR">
+        <div class="drop-ico"><svg class="icon"><use href="#i-image"/></svg></div>
+        <p><b>Kéo thả ảnh có mã QR vào đây</b></p>
+        <p class="hint">hoặc bấm để chọn ảnh · dán ảnh chụp màn hình bằng <b>Ctrl+V</b></p>
+      </div>
+      <div class="or">hoặc</div>
+      <div class="row" style="justify-content:center">
+        <button class="primary" id="cam-btn"><svg class="icon"><use href="#i-camera"/></svg>Quét bằng camera</button>
+        <button class="ghost hidden" id="cam-stop">Dừng camera</button>
+        <span class="muted" id="cam-status"></span>
+      </div>
+      <div class="cam hidden" id="cam-box"><video id="cam-video" playsinline muted></video><div class="cam-frame"></div></div>
+      <canvas id="qr-canvas" class="hidden"></canvas>
+      <p class="note"><svg class="icon"><use href="#i-info"/></svg><span><b>Quishing</b> là lừa đảo bằng mã QR: mã dán ở bãi xe, hóa đơn, email… dẫn tới trang giả mạo.
+        Ảnh và hình camera được giải mã ngay trên trình duyệt, không tải lên máy chủ. Trên điện thoại có thể “Thêm vào màn hình chính” để dùng như ứng dụng.</span></p>
+    </section>
 
-  <section class="panel hidden" id="tab-sms">
-    <label for="sms-body">Dán tin nhắn SMS / Zalo / Messenger</label>
-    <textarea id="sms-body" rows="6" placeholder="VD: [VCB] Tai khoan cua quy khach bi tam khoa. Truy cap https://... de xac minh"></textarea>
-    <div class="row"><button class="primary" id="sms-btn">Kiểm tra tin nhắn</button><a href="#" id="sms-sample">Điền tin mẫu</a></div>
-  </section>
+    <section class="panel hidden" id="tab-email">
+      <div class="grid2">
+        <div><label for="em-from">Người gửi</label><input id="em-from" placeholder="Vietcombank &lt;no-reply@vcb-thongbao.com&gt;"></div>
+        <div><label for="em-reply">Reply-To <span class="muted" style="font-weight:400">(nếu có)</span></label><input id="em-reply" placeholder="(không bắt buộc)"></div>
+      </div>
+      <label for="em-subject">Tiêu đề</label><input id="em-subject" placeholder="Tiêu đề email">
+      <label for="em-body">Nội dung <span class="muted" style="font-weight:400">(có thể dán cả link)</span></label>
+      <textarea id="em-body" rows="7" placeholder="Dán nội dung email vào đây…"></textarea>
+      <div class="row">
+        <button class="primary" id="em-btn"><svg class="icon"><use href="#i-search"/></svg>Phân tích email</button>
+        <label class="file-btn"><svg class="icon"><use href="#i-file"/></svg>Mở file .eml<input type="file" id="em-file" accept=".eml,message/rfc822"></label>
+        <a href="#" class="link-btn" id="em-sample"><svg class="icon"><use href="#i-spark"/></svg>Điền email mẫu</a>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="tab-sms">
+      <label for="sms-body">Dán tin nhắn SMS / Zalo / Messenger</label>
+      <textarea id="sms-body" rows="6" placeholder="VD: [VCB] Tai khoan cua quy khach bi tam khoa. Truy cap https://... de xac minh"></textarea>
+      <div class="row">
+        <button class="primary" id="sms-btn"><svg class="icon"><use href="#i-search"/></svg>Kiểm tra tin nhắn</button>
+        <a href="#" class="link-btn" id="sms-sample"><svg class="icon"><use href="#i-spark"/></svg>Điền tin mẫu</a>
+      </div>
+    </section>
+  </div>
 
   <section id="result" class="result hidden" aria-live="polite"></section>
 </main>
 
-<footer class="foot">PhishGuard · Đồ án phát hiện lừa đảo trực tuyến · Có kèm Chrome extension</footer>
+<section class="how">
+  <h2>PhishGuard kiểm tra như thế nào?</h2>
+  <p>Mỗi lần kiểm tra đi qua nhiều lớp. Lớp nào phát hiện dấu hiệu gì sẽ hiện trong mục “Vì sao ra kết quả này?”.</p>
+  <div class="layers">
+    <div class="layer"><div class="ico red"><svg class="icon"><use href="#i-list"/></svg></div>
+      <h3>Danh sách lừa đảo</h3><p>Đối chiếu danh sách đen tự cập nhật từ OpenPhish và Google Safe Browsing.</p></div>
+    <div class="layer"><div class="ico"><svg class="icon"><use href="#i-search"/></svg></div>
+      <h3>Bộ luật nhận diện</h3><p>Bắt giả mạo thương hiệu (cả kiểu faceb00k, vietcornbank), đuôi tên miền rẻ, từ khóa dụ dỗ, link rút gọn.</p></div>
+    <div class="layer"><div class="ico purple"><svg class="icon"><use href="#i-cpu"/></svg></div>
+      <h3>Học máy</h3><p>Mô hình tự huấn luyện trên 175.000 tên miền và hơn 16.000 email, tin nhắn; cộng thêm tuổi tên miền và báo cáo cộng đồng.</p></div>
+    <div class="layer"><div class="ico teal"><svg class="icon"><use href="#i-spark"/></svg></div>
+      <h3>AI Gemini</h3><p>Đọc hiểu nội dung khi các lớp trước chưa chắc chắn, có cơ chế chống prompt injection.</p></div>
+  </div>
+  <div class="cta">
+    <div><b>Muốn được bảo vệ tự động khi lướt web?</b><span>PhishGuard có Chrome extension tự kiểm tra mọi trang bạn mở và cảnh báo ngay.</span></div>
+    <div class="row"><a class="ghost" href="/about">Tìm hiểu hệ thống <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+  </div>
+</section>
+
+<footer class="foot">PhishGuard · Đồ án phát hiện lừa đảo trực tuyến · <a href="/about">Giới thiệu</a> · <a href="/docs">API</a></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="/static/check.js"></script>

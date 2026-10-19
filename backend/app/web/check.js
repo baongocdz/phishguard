@@ -57,24 +57,53 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
-function showLoading(text) {
+// Icon lấy từ bộ <symbol> trong index.html.
+function icon(id) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(NS, "use");
+  use.setAttribute("href", `#${id}`);
+  svg.append(use);
+  return svg;
+}
+
+const ADVICE = {
+  phishing: "Đừng bấm link, đừng nhập mật khẩu, mã OTP hay thông tin thẻ, và không chuyển tiền.",
+  suspicious: "Có dấu hiệu bất thường. Kiểm tra kỹ địa chỉ và người gửi trước khi nhập bất kỳ thông tin nào.",
+  safe: "Chưa phát hiện dấu hiệu lừa đảo. Dù vậy, đừng bao giờ đưa mã OTP cho người khác.",
+};
+
+function showBox(cls, ...children) {
   const box = $("result");
-  box.className = "result";
-  box.replaceChildren(el("p", { class: "muted" }, text));
+  box.className = cls;
+  box.replaceChildren(...children);
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function showLoading(text) {
+  showBox("result", el("p", { class: "loading" }, el("span", { class: "spinner" }), text));
 }
 
 function showError(err) {
-  const box = $("result");
-  box.className = "result";
-  box.replaceChildren(el("p", { class: "danger" }, "⚠ " + (err.message || err)));
+  showBox("result", el("p", { class: "error" }, "⚠ " + (err.message || err)));
+}
+
+// Phần đầu kết quả: vòng điểm + kết luận + lời khuyên.
+function resultHead(verdict, pct, title, advice, meta = []) {
+  const gauge = pct === null ? "" : el("div", { class: "gauge", style: `--p:${pct};--c:${COLOR[verdict]}` },
+    el("div", {}, el("b", {}, pct), el("small", {}, "/100")));
+  return el("div", { class: "res-head" }, gauge,
+    el("div", {},
+      el("p", { class: "res-title" }, icon(verdict === "safe" ? "i-check" : "i-alert"), title),
+      el("p", { class: "advice" }, advice),
+      meta.length ? el("div", { class: "res-meta" }, meta.map((m) => el("span", {}, m))) : ""));
 }
 
 // target: {label, value, url?, hostname?} – thông tin để hiển thị và để báo cáo sai.
 function showResult(r, target, extra = []) {
-  const box = $("result");
-  box.className = `result ${r.verdict}`;
   const pct = Math.round(r.score * 100);
-  const meter = el("div", { class: "meter" }, el("div", { style: `width:${Math.max(pct, 3)}%;background:${COLOR[r.verdict]}` }));
   // Explainable AI: mỗi lớp (danh sách, luật, học máy, Gemini...) góp bao nhiêu điểm.
   const breakdown = r.breakdown || [];
   const explained = new Set(breakdown.map((s) => s.label));
@@ -86,16 +115,19 @@ function showResult(r, target, extra = []) {
     : breakdown.length ? "" : el("p", { class: "muted" }, "Không phát hiện dấu hiệu bất thường.");
 
   const children = [
-    el("div", {}, el("span", { class: `chip ${r.verdict}` }, `${LABEL[r.verdict]}`), "  ",
-      el("span", { class: "muted" }, `Mức nguy hiểm ${pct}/100 · Nguồn: ${SOURCE[r.source] || r.source}`)),
-    meter,
-    target ? el("p", { class: "mono" }, `${target.label}: ${target.value}`) : "",
+    resultHead(r.verdict, pct, LABEL[r.verdict] || r.verdict, ADVICE[r.verdict] || "",
+      [`Mức nguy hiểm ${pct}/100`, `Nguồn: ${SOURCE[r.source] || r.source}`]),
+    target ? targetLine(target.label, target.value) : "",
     ...extra,
     why,
     reasons,
   ];
   if (target && target.url) children.push(reportBox(target, r));
-  box.replaceChildren(...children);
+  showBox(`result ${r.verdict}`, ...children);
+}
+
+function targetLine(label, value) {
+  return el("p", { class: "target" }, el("b", {}, label), el("span", { class: "mono" }, value));
 }
 
 const LAYER = {
@@ -108,14 +140,14 @@ function explainTable(signals) {
     el("span", { class: `bd-tag ${s.layer}` }, LAYER[s.layer] || s.layer),
     el("span", {}, s.label),
     el("span", { class: "bd-pts" }, s.points > 0 ? `+${s.points}` : "0")));
-  return el("div", { class: "bd" }, el("p", { class: "bd-title" }, "Vì sao ra kết quả này?"), ...rows);
+  return el("div", { class: "bd" }, el("p", { class: "bd-title" }, icon("i-layers"), "Vì sao ra kết quả này?"), ...rows);
 }
 
 function reportBox(target, r) {
   const wrap = el("div", { class: "row" });
   const kind = r.verdict === "safe" ? "phishing" : "false_positive";
-  const btn = el("button", { class: "ghost" },
-    kind === "phishing" ? "🚩 Báo đây là lừa đảo" : "✅ Báo kết quả sai (trang an toàn)");
+  const btn = el("button", { class: "ghost" }, icon(kind === "phishing" ? "i-flag" : "i-check"),
+    kind === "phishing" ? "Báo đây là lừa đảo" : "Báo kết quả sai (trang an toàn)");
   btn.addEventListener("click", async () => {
     btn.disabled = true;
     try {
@@ -142,7 +174,7 @@ async function runUrlCheck() {
   const r = await checkUrl(u, "manual");
   showResult(r, { label: "Link", value: u.href, url: u.href, hostname: u.hostname });
 }
-$("url-btn").addEventListener("click", (e) => withButton(e.target, runUrlCheck));
+$("url-btn").addEventListener("click", (e) => withButton(e.currentTarget, runUrlCheck));
 $("url-input").addEventListener("keydown", (e) => { if (e.key === "Enter") $("url-btn").click(); });
 document.querySelectorAll(".sample").forEach((a) => a.addEventListener("click", (e) => {
   e.preventDefault();
@@ -167,13 +199,10 @@ async function decodeQr(file) {
 async function handleQrText(text) {
   const u = parseUrl(text);
   if (!u || !/^https?:$/.test(u.protocol)) {
-    const box = $("result");
-    box.className = "result suspicious";
-    box.replaceChildren(
-      el("p", {}, "Mã QR không chứa đường link web. Nội dung:"),
-      el("p", { class: "mono" }, text),
-      el("p", { class: "muted" }, "Cẩn thận nếu mã QR yêu cầu chuyển tiền, đăng nhập Wi-Fi lạ hoặc mở ứng dụng."),
-    );
+    showBox("result suspicious",
+      resultHead("suspicious", null, "Mã QR không chứa đường link web",
+        "Cẩn thận nếu mã QR yêu cầu chuyển tiền, đăng nhập Wi-Fi lạ hoặc mở ứng dụng."),
+      targetLine("Nội dung", text));
     return;
   }
   showLoading("Đã đọc mã QR, đang kiểm tra link…");
@@ -277,7 +306,7 @@ async function runEmailCheck() {
   const r = await post("/analyze-email", req);
   showResult(r, { label: "Email từ", value: req.sender || "(không rõ)" });
 }
-$("em-btn").addEventListener("click", (e) => withButton(e.target, runEmailCheck));
+$("em-btn").addEventListener("click", (e) => withButton(e.currentTarget, runEmailCheck));
 // Link lấy từ email mẫu / file .eml chỉ dùng cho đúng email đó: người dùng tự sửa thì bỏ đi.
 ["em-from", "em-subject", "em-body"].forEach((id) => $(id).addEventListener("input", () => { window.__emlLinks = []; }));
 $("em-sample").addEventListener("click", (e) => {
@@ -357,10 +386,10 @@ async function runSmsCheck() {
   showLoading("Đang phân tích tin nhắn…");
   const links = linksFrom(body);
   const r = await post("/analyze-email", { sender: "", replyTo: "", subject: "", body, links });
-  const extra = links.length ? [el("p", { class: "muted" }, `Link trong tin: ${links.map((l) => l.href).join(", ")}`)] : [];
+  const extra = links.length ? [targetLine("Link trong tin", links.map((l) => l.href).join(", "))] : [];
   showResult(r, null, extra);
 }
-$("sms-btn").addEventListener("click", (e) => withButton(e.target, runSmsCheck));
+$("sms-btn").addEventListener("click", (e) => withButton(e.currentTarget, runSmsCheck));
 $("sms-sample").addEventListener("click", (e) => {
   e.preventDefault();
   $("sms-body").value = "[VCB] Tai khoan cua Quy khach bi tam khoa do dang nhap bat thuong. Vui long truy cap https://vietcombank-xacminh.click de xac minh trong 24h, nhap ma OTP de mo khoa.";

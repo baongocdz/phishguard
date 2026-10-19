@@ -1,6 +1,6 @@
 // Service worker tối giản để trang kiểm tra cài được như ứng dụng trên điện thoại (PWA).
 // Chỉ lưu sẵn giao diện; mọi lời gọi kiểm tra (POST) luôn đi thẳng tới máy chủ.
-const CACHE = "phishguard-shell-v1";
+const CACHE = "phishguard-shell-v2";
 const SHELL = ["/", "/static/style.css", "/static/check.js", "/static/icon-192.png"];
 
 self.addEventListener("install", (event) => {
