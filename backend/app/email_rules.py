@@ -47,6 +47,14 @@ def _host(url: str) -> str:
         return ""
 
 
+OFFICIAL_SENDER_NOTE = "Gửi từ tên miền chính thức"  # service.py dựa vào câu này để bỏ qua học máy / Gemini
+
+
+def is_official_and_clean(result: AnalyzeResponse) -> bool:
+    """Kết quả luật: người gửi chính chủ, link sạch → tin luôn, không hỏi thêm học máy / Gemini."""
+    return result.score == 0 and any(s.label.startswith(OFFICIAL_SENDER_NOTE) for s in result.breakdown)
+
+
 def _official_host(host: str) -> bool:
     """Tên miền chính thức của một thương hiệu trong BRANDS (google.com, vietcombank.com.vn...)."""
     return any(_is_official(host, official) for official in BRANDS.values())
@@ -99,7 +107,7 @@ def run_email_rules(req: EmailRequest) -> AnalyzeResponse:
     #    thì chữ "cảnh báo", "OTP" là bình thường, không cộng điểm. Thư giả mạo người gửi mà
     #    kèm link lạ vẫn bị bắt ở bước 3.
     if sender_domain and _official_host(sender_domain) and not t.score:
-        t.add(0.0, f"Gửi từ tên miền chính thức ({sender_domain}), người gửi và link không có dấu hiệu giả mạo.")
+        t.add(0.0, f"{OFFICIAL_SENDER_NOTE} ({sender_domain}), người gửi và link không có dấu hiệu giả mạo.")
         return AnalyzeResponse(verdict="safe", score=0.0, reasons=t.reasons, source="email",
                                breakdown=t.signals)
     text = _strip_accents(f"{req.subject}\n{req.body}")

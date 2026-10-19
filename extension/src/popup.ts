@@ -55,6 +55,28 @@ function showVerdict(result: AnalysisResult): void {
   $("source").textContent = `Nguồn kết quả: ${SOURCE[result.source] ?? result.source}`;
 }
 
+// ---------- Trang đến từ quảng cáo trả tiền (chỉ thông báo, không chặn) ----------
+// Quảng cáo hợp pháp (Google, Facebook, video trước phim…) gắn tham số vào link để nhà quảng cáo đo hiệu quả.
+// Không có nghĩa trang nguy hiểm, nhưng cho người dùng biết vì sao trang này xuất hiện.
+const PAID_MEDIUM = /(^|[_-])(cpm|cpc|cpa|cpv|ppc|paid|display|banner|video|preroll|instream|native|ads?|advertising|sponsored|popunder|popup)([_-]|$)/i;
+const AD_CLICK_IDS = ["gclid", "gad_source", "dclid", "wbraid", "gbraid", "msclkid", "ttclid", "twclid", "li_fat_id"];
+
+export function adLandingInfo(raw: string): string | null {
+  let q: URLSearchParams;
+  try {
+    q = new URL(raw).searchParams;
+  } catch {
+    return null;
+  }
+  const medium = q.get("utm_medium") ?? "";
+  const clickId = AD_CLICK_IDS.find((k) => q.has(k));
+  if (!PAID_MEDIUM.test(medium) && !clickId) return null;
+  const parts = [medium, q.get("utm_source"), q.get("utm_campaign")].filter((x): x is string => !!x).map((x) => x.slice(0, 40));
+  if (clickId) parts.push(clickId === "gclid" || clickId === "gad_source" ? "Google Ads" : clickId);
+  return `📢 Bạn đến trang này qua một quảng cáo (${parts.join(" · ")}). Không có nghĩa là trang nguy hiểm, `
+    + "nhưng nếu bạn không hề bấm vào quảng cáo thì có thể trang trước đã tự đẩy bạn sang.";
+}
+
 // ---------- Gmail: kết quả của email đang mở (gmail.ts gửi, background lưu theo tab) ----------
 async function showEmailResult(tab: chrome.tabs.Tab): Promise<void> {
   const stored: EmailResult | null = tab.id
@@ -79,6 +101,11 @@ async function showTabResult(tab: chrome.tabs.Tab | undefined): Promise<void> {
   const verdictEl = $("verdict");
   if (tab?.url?.startsWith("https://mail.google.com/")) return showEmailResult(tab);
   $("url").textContent = tab?.url ?? "";
+  const ad = adLandingInfo(tab?.url ?? "");
+  if (ad) {
+    $("ad-info").textContent = ad;
+    $("ad-info").classList.remove("hidden");
+  }
 
   const result: AnalysisResult | null = tab?.id
     ? await chrome.runtime.sendMessage({ type: "GET_RESULT", tabId: tab.id } satisfies ExtMessage)

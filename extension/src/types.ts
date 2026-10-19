@@ -45,6 +45,7 @@ export interface ClickInfo {
   at: number;
   href: string; // link được bấm ("" nếu bấm vào chỗ không phải link)
   overlay: boolean; // link trong suốt / phủ kín màn hình
+  formSubmit: boolean; // bấm nút gửi form (chuyển trang do gửi form là bình thường)
 }
 
 /** Kết quả email đang mở trong Gmail, lưu theo tab để popup hiện lại. */
@@ -70,5 +71,5 @@ export type ExtMessage =
   | { type: "ANALYZE_URL"; url: string; kind: "qr" | "manual" }
   | { type: "REPORT"; payload: ReportInfo }
   | { type: "AD_ALLOW"; url: string; always: boolean }
-  | { type: "LAST_CLICK" }
+  | { type: "CLICK"; click: ClickInfo }
   | { type: "GET_EMAIL_RESULT"; tabId: number };

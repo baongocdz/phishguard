@@ -1,6 +1,6 @@
 import { allowAlways, allowOnce, applyAdRules } from "./adblock";
 import { analyze, analyzeEmail, analyzeUrl, sendReport } from "./analyzer";
-import { watchPopunders } from "./popunder";
+import { recordClick, watchPopunders } from "./popunder";
 import type { AnalysisResult, EmailInfo, EmailResult, ExtMessage, HistoryItem, PageInfo } from "./types";
 
 const resultKey = (tabId: number) => `result:${tabId}`;
@@ -45,6 +45,10 @@ async function handleEmail(email: EmailInfo, tabId: number | undefined, url: str
 }
 
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
+  if (msg.type === "CLICK" && sender.tab?.id !== undefined) {
+    recordClick(sender.tab.id, msg.click);
+    return false;
+  }
   if (msg.type === "PAGE_INFO" && sender.tab?.id !== undefined) {
     void handlePageInfo(sender.tab.id, msg.payload);
     return false;

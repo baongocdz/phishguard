@@ -12,8 +12,12 @@ async function enabled(): Promise<boolean> {
   return gmailScan !== false; // mặc định bật, tắt được trong popup
 }
 
+// Gmail giữ lại DOM của thư đã xem (chỉ ẩn đi) → luôn chọn phần tử ĐANG HIỂN THỊ.
+const isVisible = (el: Element) => el.getClientRects().length > 0;
+const visibleSubject = () => Array.from(document.querySelectorAll<HTMLElement>("h2.hP")).find(isVisible);
+
 function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } | null {
-  const subject = document.querySelector<HTMLElement>("h2.hP")?.innerText.trim() ?? "";
+  const subject = visibleSubject()?.innerText.trim() ?? "";
   // Một cuộc hội thoại có thể có nhiều thư; lấy thư cuối cùng đang mở VÀ đang hiện trên màn hình
   // (Gmail giữ sẵn các khung div.a3s bị ẩn; chèn banner vào đó thì người dùng không thấy).
   const bodies = Array.from(document.querySelectorAll<HTMLElement>("div.a3s"))
@@ -37,7 +41,7 @@ function readOpenEmail(): { key: string; info: EmailInfo; anchor: HTMLElement } 
   return { key, info, anchor: body };
 }
 
-const hasBanner = () => !!document.querySelector(`.${BANNER_CLASS}`);
+const hasBanner = () => Array.from(document.querySelectorAll(`.${BANNER_CLASS}`)).some(isVisible);
 
 function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
   document.querySelectorAll(`.${BANNER_CLASS}`).forEach((b) => b.remove());
@@ -58,7 +62,7 @@ function bannerShell(anchor: HTMLElement, cls: string): HTMLDivElement {
   root.append(style, box);
   // Đặt ngay dưới tiêu đề email: luôn nhìn thấy khi mở thư, kể cả thread dài nhiều thư
   // (đặt trên nội dung thư cuối thì hay bị cuộn khuất). Không có tiêu đề thì đặt trên nội dung.
-  const subjectRow = document.querySelector<HTMLElement>("h2.hP")?.parentElement;
+  const subjectRow = visibleSubject()?.parentElement;
   if (subjectRow?.parentElement) subjectRow.after(host);
   else anchor.parentElement?.insertBefore(host, anchor);
   return box;
@@ -91,8 +95,6 @@ function showBanner(anchor: HTMLElement, r: AnalysisResult): void {
   box.append(title, list, tip);
 }
 
-let timer: number | undefined;
-
 async function check(): Promise<void> {
   if (!(await enabled())) return;
   const mail = readOpenEmail();
@@ -113,7 +115,20 @@ async function check(): Promise<void> {
     return;
   }
   analyzed.set(mail.key, r);
-  showBanner(mail.anchor, r);
+  // Người dùng đã chuyển sang thư khác trong lúc chờ: không gắn kết quả vào nhầm thư.
+  if (readOpenEmail()?.key === mail.key) showBanner(mail.anchor, r);
+}
+
+// Kiểm tra tối đa mỗi 0,6 giây khi Gmail đổi DOM. (Không "đợi DOM đứng yên" vì Gmail đổi DOM gần như
+// liên tục — đồng hồ, khung chat — nên mốc đó không bao giờ tới: mở thư khác mà không được kiểm tra.)
+let scheduled = false;
+function schedule(delay = 600): void {
+  if (scheduled) return;
+  scheduled = true;
+  window.setTimeout(() => {
+    scheduled = false;
+    void check().catch(() => {});
+  }, delay);
 }
 
 // Gmail là ứng dụng một trang: theo dõi DOM thay đổi để biết khi mở email khác.
@@ -124,8 +139,12 @@ const observer = new MutationObserver(() => {
     observer.disconnect();
     return;
   }
-  clearTimeout(timer);
-  timer = window.setTimeout(() => void check().catch(() => {}), 800);
+  schedule();
 });
 observer.observe(document.body, { childList: true, subtree: true });
+// Mở thư khác = đổi #… trên URL; kiểm tra lại cả lúc Gmail vẽ xong thư.
+window.addEventListener("hashchange", () => {
+  schedule(300);
+  window.setTimeout(() => schedule(), 1500);
+});
 void check().catch(() => {}); // email đã mở sẵn lúc tải trang (vd mở bằng link thẳng tới thư)

@@ -516,3 +516,24 @@ def test_gambling_landing_page_is_flagged():
 ])
 def test_news_and_normal_titles_are_not_gambling(title):
     assert not any("cờ bạc" in x for x in _page("tin-tuc-abc.com", title).reasons)
+
+
+def test_official_clean_email_skips_gemini(monkeypatch):
+    """Thư chính chủ, link sạch: không hỏi Gemini (Gemini hay đoán thông báo bảo mật thật là đáng ngờ)."""
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-key")
+    calls = []
+
+    async def fake(req):
+        calls.append(req)
+        return None
+
+    monkeypatch.setattr(gemini_client, "classify_email", fake)
+    c, _ = make_client()
+    body = {"sender": "Google <no-reply@accounts.google.com>", "subject": "Cảnh báo bảo mật", "body": GOOGLE_ALERT_BODY,
+            "links": [{"text": "Kiểm tra hoạt động", "href": GOOGLE_ALERT_LINK.href}]}
+    assert c.post("/analyze-email", json=body).json()["verdict"] == "safe"
+    assert calls == []
+    # Cùng thư nhưng link lạ: vẫn hỏi Gemini như bình thường.
+    body["links"] = [{"text": "Kiểm tra hoạt động", "href": "http://tracking-mail.xyz/a"}]  # đáng ngờ, chưa tới mức lừa đảo
+    c.post("/analyze-email", json=body)
+    assert len(calls) == 1

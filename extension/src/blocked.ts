@@ -1,7 +1,7 @@
 import type { ExtMessage } from "./types";
 
-// Hash có dạng "<loại>|<url>": ad, aff, mk (adblock.ts) hoặc pop (popunder.ts).
-type Kind = "ad" | "aff" | "pop" | "mk";
+// Hash có dạng "<loại>|<url>": ad, aff, mk (adblock.ts) hoặc pop, tu (popunder.ts).
+type Kind = "ad" | "aff" | "pop" | "mk" | "tu";
 function readHash(): { kind: Kind; url: string } {
   let raw = location.hash.slice(1);
   try {
@@ -11,7 +11,7 @@ function readHash(): { kind: Kind; url: string } {
   }
   const sep = raw.indexOf("|");
   const prefix = sep > 0 ? raw.slice(0, sep) : "";
-  if (["ad", "aff", "pop", "mk"].includes(prefix)) return { kind: prefix as Kind, url: raw.slice(sep + 1) };
+  if (["ad", "aff", "pop", "mk", "tu"].includes(prefix)) return { kind: prefix as Kind, url: raw.slice(sep + 1) };
   return { kind: "ad", url: raw };
 }
 
@@ -31,6 +31,12 @@ if (kind === "aff") {
   $("lead").textContent = "Trang bạn vừa xem tự mở tab mới sang một trang web khác khi bạn bấm vào chỗ không phải là link (kiểu quảng cáo popunder của web phim/truyện lậu):";
   $("tip1").textContent = "Những tab này thường dẫn tới cờ bạc trực tuyến, trúng thưởng giả, ứng dụng lạ hoặc trang lừa đảo.";
   $("tip2").textContent = "Nếu đúng là bạn muốn mở trang này (vd nút thanh toán, đăng nhập), bấm “Mở lần này”.";
+} else if (kind === "tu") {
+  document.title = "PhishGuard đã chặn trang tự chuyển sang quảng cáo";
+  $("title").textContent = "🛡️ Trang vừa tự chuyển bạn sang quảng cáo";
+  $("lead").textContent = "Bạn vừa bấm vào chỗ không phải là link (nút Play, nền trang…), nhưng trang tự chuyển chính tab này sang một trang web khác (kiểu “tab-under” của web phim/truyện lậu: phim mở ở tab mới, tab cũ thành quảng cáo):";
+  $("tip1").textContent = "Những trang này thường là cờ bạc trực tuyến, trúng thưởng giả, ứng dụng lạ hoặc trang lừa đảo.";
+  $("tip2").textContent = "Bấm “Quay lại an toàn” để về trang trước. Nếu đúng là bạn muốn mở trang này, bấm “Mở lần này”.";
 } else if (kind === "mk") {
   document.title = "PhishGuard: đây là trang đích của quảng cáo bật lên";
   $("title").textContent = "🛡️ Đây là trang đích của quảng cáo bật lên";

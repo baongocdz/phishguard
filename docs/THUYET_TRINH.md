@@ -216,8 +216,8 @@ Vì là công cụ bảo mật, bản thân PhishGuard cũng phải an toàn:
 ## 9. Kiểm thử (khoảng 30 giây)
 
 Hệ thống được kiểm thử ở **bốn lớp**:
-- **66 bài test** cho máy chủ.
-- **23 kịch bản** chạy extension trong Chrome thật một cách tự động.
+- **67 bài test** cho máy chủ.
+- **29 kịch bản** chạy extension trong Chrome thật một cách tự động.
 - **16 kịch bản** cho trang web và trang quản trị, gồm cả tải ảnh QR thật, **giả lập camera phát video có mã QR**,
   và kiểm tra giao diện trên điện thoại.
 - Một script kiểm tra nhanh toàn bộ máy chủ thật.

@@ -8,7 +8,7 @@ from . import gemini_client
 from .config import settings
 from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
-from .email_rules import _domain_of, run_email_rules
+from .email_rules import _domain_of, is_official_and_clean, run_email_rules
 from . import domain_age, ml, safebrowsing, shortlinks, text_ml
 from .heuristics import BRANDS, _is_official, run_heuristics, verdict_of
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
@@ -203,8 +203,10 @@ async def _save_cache(db, key: str, hostname: str, result: AnalyzeResponse) -> N
 
 async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
     """Luồng email: cache -> luật email -> (Gemini) -> ghi cache."""
+    # Link phải nằm trong khóa: cùng nội dung nhưng link thật bị thay bằng link lừa đảo là hai email khác nhau.
+    links = "\n".join(link.href for link in req.links)
     key = f"email:{CACHE_VERSION}:" + hashlib.sha256(
-        f"{req.sender}\n{req.subject}\n{req.body}".encode()
+        f"{req.sender}\n{req.subject}\n{req.body}\n{links}".encode()
     ).hexdigest()
     cached = await db["cache"].find_one({"key": key})
     if cached:
@@ -222,10 +224,14 @@ async def analyze_email(db, req: EmailRequest) -> AnalyzeResponse:
                 links[i] = links[i].model_copy(update={"href": target})
         req = req.model_copy(update={"links": links})
 
-    result = apply_text_ml(req, run_email_rules(req))
+    rules = run_email_rules(req)
+    # Thư từ tên miền chính chủ, link sạch (thông báo bảo mật của Google, ngân hàng): tin luôn. Gemini đọc
+    # "phát hiện đăng nhập lạ…" dễ đoán là đáng ngờ; giả mạo đúng tên miền thì chính Gmail chặn (DMARC).
+    official = is_official_and_clean(rules)
+    result = rules if official else apply_text_ml(req, rules)
     gemini_failed = False
     # Email do người dùng chủ động mở/dán nên hỏi Gemini khi luật chưa chắc chắn.
-    if settings.gemini_api_key and result.score < 0.6:
+    if settings.gemini_api_key and result.score < 0.6 and not official:
         g = await gemini_client.classify_email(req)
         if g is None:
             gemini_failed = True

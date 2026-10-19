@@ -34,3 +34,4 @@ details summary { cursor: pointer; font-weight: 600; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #757575; }
 .dot.phishing { background: #c62828; } .dot.suspicious { background: #ef6c00; }
 .bd-tag.age { background: #6d4c41; } .bd-tag.community { background: #ad1457; }
+.ad-info { font-size: 12px; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 5px 8px; margin: 0 0 8px; color: #5c3b00; word-break: break-word; }
