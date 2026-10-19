@@ -167,7 +167,11 @@ async function scanQr(): Promise<void> {
   btn.disabled = true;
   out.textContent = "Đang chụp và đọc màn hình…";
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab({ format: "png" });
+    // ?win=<id>: chỉ dùng trong test tự động (popup mở ở cửa sổ riêng, chụp cửa sổ có mã QR).
+    const win = Number(new URLSearchParams(location.search).get("win"));
+    const dataUrl = win
+      ? await chrome.tabs.captureVisibleTab(win, { format: "png" })
+      : await chrome.tabs.captureVisibleTab({ format: "png" });
     const img = await createImageBitmap(await (await fetch(dataUrl)).blob());
     const text = findQr(img);
     if (!text) {
@@ -203,6 +207,7 @@ async function scanQr(): Promise<void> {
     renderReasons(list, r.reasons);
     box.append(chip, list);
   } catch (e) {
+    console.warn("PhishGuard: không chụp được màn hình", e);
     out.textContent = "Không chụp được màn hình của tab này (trang hệ thống của Chrome không cho phép).";
   } finally {
     btn.disabled = false;

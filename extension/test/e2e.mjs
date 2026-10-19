@@ -2,16 +2,21 @@
 // Chạy: npm run build && npm run e2e      (thêm HEADFUL=1 để xem trình duyệt chạy)
 //
 // Gmail được test bằng trang giả lập cấu trúc DOM Gmail tại mail.google.com (chặn request, trả HTML giả).
-// Không test được tự động: nút quét QR
-// (captureVisibleTab cần người dùng bấm vào icon extension).
+// Nút quét QR: chụp màn hình cần quyền activeTab (có khi người dùng bấm icon, Puppeteer không bấm được) → test chạy
+// trên BẢN SAO dist-e2e/ có thêm quyền <all_urls>; bản phát hành (dist/) giữ nguyên quyền.
 import http from "node:http";
-import { readFileSync } from "node:fs";
+import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const DIST = join(ROOT, "dist");
+const DIST = join(ROOT, "dist-e2e");
+rmSync(DIST, { recursive: true, force: true });
+cpSync(join(ROOT, "dist"), DIST, { recursive: true });
+const testManifest = JSON.parse(readFileSync(join(DIST, "manifest.json"), "utf8"));
+testManifest.host_permissions.push("<all_urls>");
+writeFileSync(join(DIST, "manifest.json"), JSON.stringify(testManifest, null, 2));
 const PORT = 5517;
 const BASE = `http://127.0.0.1:${PORT}`; // địa chỉ IP: trang đăng nhập giả bị chấm nghi ngờ
 const SAFE = `http://localhost:${PORT}`; // tên máy thường: trang sạch không bị chấm
@@ -87,7 +92,8 @@ async function waitFor(fn, timeout = 15000, step = 200) {
 }
 
 // ---------- Tìm extension và chờ luật chặn quảng cáo được cài ----------
-const worker = await (await browser.waitForTarget((t) => t.type() === "service_worker" && t.url().endsWith("background.js"))).worker();
+const isSw = (t) => t.type() === "service_worker" && t.url().endsWith("background.js");
+const worker = await (await browser.waitForTarget(isSw)).worker();
 const extId = new URL(worker.url()).host;
 // Service worker vừa khởi động có thể chưa có API chrome.* → coi như 0 rồi thử lại.
 const rulesInstalled = () => worker.evaluate(async () => (await chrome.declarativeNetRequest?.getDynamicRules())?.length ?? 0)
@@ -400,6 +406,43 @@ await test("Gmail: mở thư 1, quay ra, mở thư 2 (không F5) → thư 2 cũn
     throw new Error(`${stage}: ${e.message}; các thanh: ${await state()}`);
   } finally {
     await p.close();
+  }
+});
+
+await test("Popup: nút 'Quét mã QR trên màn hình' đọc được mã và chấm link", async () => {
+  const QRCode = (await import("qrcode")).default;
+  const qr = await QRCode.toDataURL("https://secure-vietcombank-xacminh.top/login", { width: 360, margin: 4 });
+  const qrPage = await browser.newPage();
+  await qrPage.setViewport({ width: 900, height: 700 });
+  // Trang http thật (extension không chụp được about:blank).
+  await qrPage.goto(`${SAFE}/clean.html`);
+  await qrPage.evaluate((src) => {
+    document.body.style.cssText = "margin:0;display:grid;place-items:center;height:100vh;background:#fff";
+    document.body.innerHTML = `<img src="${src}" width="360" height="360">`;
+  }, qr);
+  await qrPage.bringToFront();
+  // Popup thật mở khi bấm icon; ở đây mở popup trong cửa sổ riêng và chỉ định cửa sổ cần chụp (?win=).
+  const winId = await worker.evaluate(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0].windowId);
+  const before = new Set(browser.targets());
+  await worker.evaluate((id, wid) => chrome.windows.create({ url: `chrome-extension://${id}/popup.html?win=${wid}`, type: "popup", width: 360, height: 600 }), extId, winId);
+  const popTarget = await browser.waitForTarget((t) => !before.has(t) && t.url().includes("popup.html"), { timeout: 10000 });
+  const pop = await popTarget.page();
+  const logs = [];
+  pop.on("console", (m) => logs.push(m.text()));
+  try {
+    await pop.waitForSelector("#scan-qr");
+    await pop.click("#scan-qr");
+    const out = await waitFor(() => pop.$eval("#qr-result", (e) => {
+      const t = e.textContent;
+      return /Lừa đảo|Đáng ngờ|An toàn|Không/.test(t) && !/Đang chụp/.test(t) ? t : null;
+    }), 30000);
+    if (!/secure-vietcombank-xacminh\.top/.test(out) || !/Lừa đảo|Đáng ngờ/.test(out)) {
+      throw new Error(`${out.slice(0, 80)} | console: ${logs.join(" / ").slice(0, 200)}`);
+    }
+    return out.replace(/\s+/g, " ").slice(0, 90);
+  } finally {
+    await pop.close().catch(() => {});
+    await qrPage.close();
   }
 });
 

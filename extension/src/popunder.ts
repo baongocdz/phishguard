@@ -101,6 +101,9 @@ async function checkSameTab(tabId: number, fromUrl: string, targetUrl: string, s
 // server: bấm link bit.ly rồi server chuyển sang trang khác thì vẫn là "bấm đúng link").
 const lastUrl = new Map<number, string>();
 const startUrl = new Map<number, string>();
+// Địa chỉ trang đang mở lúc điều hướng BẮT ĐẦU, hỏi thẳng Chrome. Không chỉ dựa vào lastUrl: service worker bị Chrome
+// tắt sau ~30 giây rảnh (mất hết biến trong bộ nhớ) → xem phim quá 30 giây rồi mới bấm Play thì lastUrl đã mất.
+const fromUrl = new Map<number, string>();
 
 export function watchPopunders(): void {
   chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
@@ -117,17 +120,22 @@ export function watchPopunders(): void {
       return;
     }
     startUrl.set(d.tabId, d.url);
+    const tabId = d.tabId;
+    void chrome.webNavigation.getFrame({ tabId, frameId: 0 }).then((f) => {
+      if (f?.url) fromUrl.set(tabId, f.url);
+    }).catch(() => {});
   });
   // Xét tab-under lúc trang mới được xác nhận: lúc này Chrome cho biết LOẠI điều hướng (link/script, gõ địa
   // chỉ, bookmark, Back…) — lúc bắt đầu thì chưa, nên gõ địa chỉ ngay sau khi bấm nút sẽ bị bắt nhầm.
   chrome.webNavigation.onCommitted.addListener((d) => {
     if (d.frameId !== 0) return;
-    const from = lastUrl.get(d.tabId);
+    const from = fromUrl.get(d.tabId) ?? lastUrl.get(d.tabId);
     const start = startUrl.get(d.tabId) ?? d.url;
     const click = lastClick.get(d.tabId);
     const wasNew = newTabs.delete(d.tabId);
     lastUrl.set(d.tabId, d.url);
     startUrl.delete(d.tabId);
+    fromUrl.delete(d.tabId);
     // Cú bấm đã "dùng xong" khi tab sang trang mới: bấm link rồi bấm Back ngay không bị coi là tab-under.
     lastClick.delete(d.tabId);
     const q = d.transitionQualifiers;
@@ -140,5 +148,6 @@ export function watchPopunders(): void {
     lastClick.delete(tabId);
     lastUrl.delete(tabId);
     startUrl.delete(tabId);
+    fromUrl.delete(tabId);
   });
 }
