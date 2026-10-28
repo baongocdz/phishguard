@@ -2,3 +2,6 @@ pandas
 scikit-learn
 matplotlib
 tabulate
+# Mô hình XGBoost (eval/train_url_xgb.py); lightgbm chỉ cần khi chạy với --lightgbm
+xgboost
+lightgbm

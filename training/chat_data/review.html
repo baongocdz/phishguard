@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duyệt dữ liệu chat</title>
+<style>
+  :root { --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #667085; --line: #d9dde3; --accent: #2563eb;
+          --ok: #15803d; --warn: #b45309; --bad: #b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171c; --card: #1d2128; --text: #e6e8eb; --muted: #9aa3af; --line: #343a44; --accent: #60a5fa;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { position: sticky; top: 0; background: var(--card); border-bottom: 1px solid var(--line); padding: 10px 16px;
+           display: flex; flex-wrap: wrap; gap: 8px; align-items: center; z-index: 1; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  button, select, input[type=file] { font: inherit; }
+  button { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 6px;
+           padding: 5px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; border: 1px solid var(--line); }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .msg { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 10px 0; }
+  .msg label { font-weight: 600; font-size: 13px; color: var(--muted); }
+  textarea { width: 100%; min-height: 90px; font: 14px/1.5 system-ui, sans-serif; background: transparent;
+             color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; resize: vertical; }
+  ul.flags { margin: 6px 0; padding-left: 20px; }
+  .spacer { flex: 1; }
+  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <input type="file" id="file" accept=".jsonl">
+  <select id="filter">
+    <option value="low">① Chưa duyệt, model chấm ≤ 3 (thấp trước)</option>
+    <option value="spot">② Kiểm tra ngẫu nhiên: chưa duyệt, chấm ≥ 4</option>
+    <option value="todo">Chưa duyệt</option><option value="flag">Chưa duyệt, có cờ</option>
+    <option value="all">Tất cả</option><option value="done">Đã duyệt</option><option value="gone">Đã bỏ</option>
+  </select>
+  <select id="cat"><option value="">Mọi nhóm</option></select>
+  <label class="meta"><input type="checkbox" id="shuffle" checked> Thứ tự ngẫu nhiên</label>
+  <span class="spacer"></span>
+  <span id="stats" class="meta"></span>
+  <button id="bulk" title="Sau khi đã đọc hết mẫu điểm thấp và kiểm tra ngẫu nhiên">③ Chấp nhận phần còn lại (chấm ≥ 4)</button>
+  <button id="export" class="primary">Tải về reviewed.jsonl</button>
+</header>
+<main id="main"><p class="meta">Chọn file <b>data/drafts.jsonl</b> (hoặc reviewed.jsonl để duyệt tiếp).
+Phím tắt: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> duyệt, <kbd>Ctrl</kbd>+<kbd>Delete</kbd> bỏ, <kbd>Alt</kbd>+<kbd>←/→</kbd> chuyển mẫu.
+Tiến độ tự lưu trong trình duyệt; nhớ bấm "Tải về" để có file.</p></main>
+<script>
+let records = [], view = [], pos = 0, storeKey = "";
+const $ = (id) => document.getElementById(id);
+
+function save() {
+  try { localStorage.setItem(storeKey, JSON.stringify(records)); } catch { /* đầy bộ nhớ: vẫn tải về được */ }
+}
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;  // dữ liệu không đáng tin: chỉ dùng textContent
+  return e;
+}
+// Thứ tự ngẫu nhiên nhưng CỐ ĐỊNH theo id (mở lại vẫn y như cũ): duyệt một phần vẫn đủ mọi chủ đề.
+function idHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+function refreshView(keepId) {
+  const f = $("filter").value, c = $("cat").value;
+  const score = (r) => (r.judge ? r.judge.score : 0);  // chưa được chấm: coi như cần đọc
+  const open = (r) => !r.reviewed && !r.deleted;
+  view = records.filter((r) => (!c || r.category === c) && (
+    f === "all" ? !r.deleted : f === "done" ? r.reviewed && !r.deleted : f === "gone" ? r.deleted :
+    f === "flag" ? open(r) && (r.flags || []).length : f === "low" ? open(r) && score(r) <= 3 :
+    f === "spot" ? open(r) && score(r) >= 4 : open(r)));
+  if ($("shuffle").checked) view.sort((a, b) => idHash(a.id) - idHash(b.id));
+  if (f === "low") view.sort((a, b) => score(a) - score(b));  // điểm thấp nhất lên trước (sort ổn định)
+  pos = Math.max(0, keepId ? view.findIndex((r) => r.id === keepId) : 0);
+  const done = records.filter((r) => r.reviewed && !r.deleted);
+  const per = {};
+  done.forEach((r) => { per[r.category] = (per[r.category] || 0) + 1; });
+  const auto = done.filter((r) => r.auto_accepted).length;
+  $("stats").textContent = `${done.length} đã duyệt${auto ? ` (${auto} chấp nhận theo điểm)` : ""}`
+    + ` [${Object.entries(per).map(([k, v]) => k + " " + v).join(", ") || "—"}]`
+    + ` · ${records.filter((r) => r.deleted).length} bỏ · ${records.filter(open).length} chưa xem`;
+  render();
+}
+function render() {
+  const main = $("main");
+  main.replaceChildren();
+  if (!view.length) { main.append(el("p", "meta", "Không còn mẫu nào trong bộ lọc này.")); return; }
+  pos = Math.min(pos, view.length - 1);
+  const r = view[pos];
+  const head = el("div", "meta");
+  head.append(el("b", "", `${pos + 1}/${view.length}  ${r.id}`), " · ", el("span", "tag", r.category),
+              r.reviewed ? el("span", "tag ok", " đã duyệt") : "", r.deleted ? el("span", "tag bad", " đã bỏ") : "");
+  main.append(head, el("div", "meta", `Hạt giống: ${r.seed || ""}${r.persona ? " · Vai: " + r.persona : ""} · ${r.source || ""}`));
+  if (r.judge) {
+    const s = r.judge.score;
+    const box = el("div", "meta " + (s <= 2 ? "bad" : s === 3 ? "warn" : "ok"));
+    box.append(el("b", "", `Model chấm: ${s}/5`), (r.judge.issues || []).length ? " — " + r.judge.issues.join("; ") : "");
+    if (r.judge.fix) box.append(el("div", "", "Gợi ý sửa: " + r.judge.fix));
+    main.append(box);
+  }
+  if ((r.flags || []).length) {
+    const ul = el("ul", "flags warn");
+    r.flags.forEach((f) => ul.append(el("li", "", f)));
+    main.append(ul);
+  }
+  r.messages.forEach((m, i) => {
+    const box = el("div", "msg");
+    box.append(el("label", "", m.role === "user" ? "Người dùng" : "PhishGuard"));
+    const ta = el("textarea");
+    ta.value = m.content;
+    ta.rows = Math.min(18, Math.max(4, Math.ceil(m.content.length / 95) + m.content.split("\n").length));
+    ta.addEventListener("input", () => { m.content = ta.value; r.edited = true; save(); });
+    box.append(ta);
+    main.append(box);
+  });
+  const bar = el("div");
+  bar.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px";
+  const btn = (text, cls, fn) => { const b = el("button", cls, text); b.onclick = fn; bar.append(b); };
+  btn("← Trước", "", () => { pos = Math.max(0, pos - 1); render(); });
+  btn("Sau →", "", () => { pos = Math.min(view.length - 1, pos + 1); render(); });
+  btn("✓ Duyệt (Ctrl+Enter)", "primary", approve);
+  btn("✕ Bỏ (Ctrl+Del)", "", drop);
+  if (r.reviewed || r.deleted) btn("Hoàn tác", "", () => { r.reviewed = false; r.deleted = false; save(); refreshView(r.id); });
+  main.append(bar);
+}
+function approve() { const r = view[pos]; if (!r) return; r.reviewed = true; r.deleted = false; next(r); }
+function drop() { const r = view[pos]; if (!r) return; r.deleted = true; r.reviewed = false; next(r); }
+function next(r) {
+  if (r.edited) r.source = (r.source || "").replace(/(\+sửa tay)?$/, "+sửa tay");
+  save();
+  const nextId = view[pos + 1]?.id;
+  refreshView(nextId);
+}
+$("file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  storeKey = "review:" + file.name;
+  const fresh = (await file.text()).split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(storeKey) || "null"); } catch { saved = null; }
+  if (saved && confirm(`Có tiến độ đã lưu cho ${file.name} (${saved.filter((r) => r.reviewed).length} mẫu đã duyệt). Duyệt tiếp từ đó?`)) {
+    const byId = new Map(saved.map((r) => [r.id, r]));
+    records = fresh.map((r) => byId.get(r.id) || r);  // mẫu mới sinh thêm vẫn được nạp
+  } else records = fresh;
+  const cats = [...new Set(records.map((r) => r.category))];
+  $("cat").replaceChildren(el("option", "", "Mọi nhóm"), ...cats.map((c) => { const o = el("option", "", c); o.value = c; return o; }));
+  $("cat").firstChild.value = "";
+  refreshView();
+});
+$("filter").onchange = () => refreshView();
+$("cat").onchange = () => refreshView();
+$("shuffle").onchange = () => refreshView();
+$("bulk").onclick = () => {
+  const rest = records.filter((r) => !r.reviewed && !r.deleted && r.judge && r.judge.score >= 4);
+  const left = records.filter((r) => !r.reviewed && !r.deleted && (!r.judge || r.judge.score <= 3)).length;
+  const spotted = records.filter((r) => r.reviewed && !r.auto_accepted && r.judge && r.judge.score >= 4).length;
+  if (!rest.length) { alert("Không còn mẫu điểm ≥ 4 nào chưa xem."); return; }
+  if (!confirm(`Chấp nhận ${rest.length} mẫu điểm ≥ 4 chưa xem mà không đọc?\n`
+      + `Bạn đã kiểm tra ngẫu nhiên ${spotted} mẫu điểm ≥ 4 (nên ≥ 10% ≈ ${Math.ceil(rest.length / 10)}).`
+      + (left ? `\nCòn ${left} mẫu điểm thấp/chưa chấm chưa đọc.` : ""))) return;
+  rest.forEach((r) => { r.reviewed = true; r.auto_accepted = true; });  // ghi rõ để báo cáo trung thực
+  save();
+  refreshView();
+};
+$("export").onclick = () => {
+  const out = records.filter((r) => !r.deleted).map(({ edited, deleted, ...r }) => r);
+  const blob = new Blob([out.map((r) => JSON.stringify(r)).join("\n") + "\n"], { type: "application/jsonl" });
+  const a = el("a"); a.href = URL.createObjectURL(blob); a.download = "reviewed.jsonl"; a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); approve(); }
+  else if (e.ctrlKey && e.key === "Delete") { e.preventDefault(); drop(); }
+  else if (e.altKey && e.key === "ArrowRight") { pos = Math.min(view.length - 1, pos + 1); render(); }
+  else if (e.altKey && e.key === "ArrowLeft") { pos = Math.max(0, pos - 1); render(); }
+});
+</script>
+</body>
+</html>

@@ -10,17 +10,18 @@ from .config import settings
 from .domains import cache_key, candidate_domains, is_lan_host
 from .gemini_client import GeminiOutput
 from .email_rules import DOMAIN_IN_TEXT, _domain_of, is_official_and_clean, run_email_rules
-from . import domain_age, ml, safebrowsing, shortlinks, text_ml
-from .heuristics import BRANDS, is_trusted_host, run_heuristics, verdict_of
+from . import domain_age, ml, safebrowsing, shortlinks, text_ml, url_model
+from .heuristics import BRANDS, USER_CONTENT, is_trusted_host, run_heuristics, verdict_of
 from .popular import is_popular
-from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
+from .schemas import (AnalyzeRequest, AnalyzeResponse, EmailRequest, PredictUrlResponse, ReportRequest,
+                      Signal)
 
 log = logging.getLogger("phishguard.service")
 
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 # Tăng khi đổi cách chấm hoặc định dạng kết quả để bỏ qua kết quả cũ trong cache
 # (v2: có breakdown, tên miền na ná, Safe Browsing, mạng nội bộ).
-CACHE_VERSION = "v8"
+CACHE_VERSION = "v9"
 
 
 # Đuôi chỉ cơ quan nhà nước / trường học mới đăng ký được (VNNIC cấp có kiểm tra): mô hình học máy học từ tên miền
@@ -28,19 +29,55 @@ CACHE_VERSION = "v8"
 RESTRICTED_SUFFIX = re.compile(r"\.(gov|edu|ac|mil|int)(\.[a-z]{2})?$")
 
 
+def ml_skipped(host: str) -> bool:
+    """Tên miền mà học máy KHÔNG chấm (luật vẫn chạy). Dùng chung với eval/train_url_xgb.py.
+    - Chính chủ của thương hiệu: chính vì hay bị giả mạo nên mô hình dễ chấm nhầm (vd shopee.vn).
+    - .gov/.edu: mô hình học từ tên miền quốc tế nên dễ chấm nhầm (tdmu.edu.vn).
+    - Trang phổ biến (mail.yahoo.com, coinbase.com — xem scripts/build_popular.py).
+    - Đúng tên máy của nơi người dùng tự đăng nội dung (docs.google.com, gist.github.com): trang thật và
+      trang lừa đảo dùng CÙNG tên máy nên chấm tên máy không phân biệt được; việc đó để luật đọc nội dung,
+      Gemini, Safe Browsing. Còn ten-tu-dat.github.io thì vẫn chấm (phần tên do người tạo trang đặt)."""
+    host = host.lower().rstrip(".")
+    return bool(is_trusted_host(host) or RESTRICTED_SUFFIX.search(host) or is_popular(host)
+                or host in USER_CONTENT)
+
+
+def url_prediction(host: str) -> tuple[float | None, float, float]:
+    """(xác suất lừa đảo, ngưỡng cộng 0.3, ngưỡng cộng 0.15). Dùng XGBoost (app/url_model.py);
+    chưa có file mô hình thì quay về Logistic Regression cũ (app/ml.py)."""
+    if url_model.loaded():
+        return url_model.predict(host), *url_model.thresholds()
+    return ml.predict(host), 0.9, 0.7
+
+
+def url_reasons(host: str) -> list[str]:
+    """Đặc trưng đẩy điểm về phía lừa đảo nhiều nhất (chỉ có với XGBoost)."""
+    return [name for name, _ in url_model.explain(host)] if url_model.loaded() else []
+
+
+def predict_url(url: str) -> PredictUrlResponse:
+    raw = url.strip()
+    host = (urlsplit(raw if "://" in raw else "http://" + raw).hostname or "").lower()
+    prob, high, low = url_prediction(host)
+    label = "safe" if prob is None or prob < low else "suspicious" if prob < high else "phishing"
+    return PredictUrlResponse(label=label, probability=None if prob is None else round(prob, 4),
+                              reasons=url_reasons(host),
+                              model="xgboost" if url_model.loaded() else "logistic-regression",
+                              used_in_analyze=not ml_skipped(host))
+
+
 def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
-    """Cộng điểm từ mô hình ML (xem app/ml.py và eval/results/REPORT.md).
-    Bỏ qua tên miền chính chủ của các thương hiệu: chính vì hay bị giả mạo nên
-    mô hình dễ chấm nhầm tên miền thật (vd shopee.vn). Bỏ qua cả tên miền phổ biến
-    (mail.yahoo.com, coinbase.com — xem scripts/build_popular.py)."""
+    """Cộng điểm từ mô hình ML (xem eval/results/URL_MODEL_REPORT.md)."""
     host = req.hostname.lower()
-    if is_trusted_host(host) or RESTRICTED_SUFFIX.search(host) or is_popular(host):
+    if ml_skipped(host):
         return result
-    prob = ml.predict(host)
-    score = ml.combine(result.score, prob)
+    prob, high, low = url_prediction(host)
+    score = ml.combine(result.score, prob, high, low)
     if score == result.score:
         return result
-    reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})."
+    why = url_reasons(host)
+    reason = f"Mô hình học máy đánh giá tên miền giống trang lừa đảo ({prob:.0%})" + (
+        f": {', '.join(why)}." if why else ".")
     signal = Signal(layer="ml", label=reason, points=round(score - result.score, 2))
     return AnalyzeResponse(verdict=verdict_of(score), score=score, reasons=result.reasons + [reason],
                            source=result.source, breakdown=result.breakdown + [signal])

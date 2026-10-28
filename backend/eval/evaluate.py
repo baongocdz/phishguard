@@ -36,7 +36,8 @@ from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score, precisi
 from sklearn.model_selection import train_test_split
 
 from app.heuristics import run_heuristics
-from app.ml import NGRAM_RANGE, combine, handcrafted_features, prepare
+from app.ml import combine
+from app.url_features import NGRAM_RANGE, handcrafted_features, prepare
 from app.schemas import AnalyzeRequest
 
 ROOT = Path(__file__).resolve().parent

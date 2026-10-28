@@ -14,3 +14,8 @@ dist-e2e/
 
 # Ghi chú chứa key/mật khẩu thật: chỉ để trên máy
 *.local.md
+
+# Dữ liệu chat (bản nháp/đã duyệt) và file model: không đưa lên git
+training/chat_data/data/
+*.gguf
+*.safetensors

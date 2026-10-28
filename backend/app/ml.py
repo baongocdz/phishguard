@@ -5,23 +5,15 @@ Lúc chạy chỉ cần cộng trọng số nên không phải cài scikit-learn
 """
 import json
 import math
-import re
 from pathlib import Path
 
 from .domains import is_ip
+from .url_features import prepare
 
-NGRAM_RANGE = (3, 5)
 MODEL_PATH = Path(__file__).with_name("ml_model.json")
 
 _model: dict | None = None
 _loaded = False
-
-
-def prepare(host: str) -> str:
-    """Chuẩn hóa tên miền trước khi cắt n-gram; ^ và $ đánh dấu đầu/cuối."""
-    host = host.lower().rstrip(".")
-    host = host.removeprefix("www.")
-    return f"^{host}$"
 
 
 def reload(path: Path = MODEL_PATH) -> None:
@@ -47,53 +39,11 @@ def predict(host: str) -> float | None:
     return 1 / (1 + math.exp(-max(-35.0, min(35.0, z))))
 
 
-def combine(rule_score: float, prob: float | None) -> float:
+def combine(rule_score: float, prob: float | None, high: float = 0.9, low: float = 0.7) -> float:
     """Cộng điểm ML vào điểm luật. ML chỉ được cộng tối đa 0.3: một mình ML chỉ
-    đẩy trang lên mức "đáng ngờ" (rồi Gemini xem tiếp), không tự kết luận lừa đảo."""
+    đẩy trang lên mức "đáng ngờ" (rồi Gemini xem tiếp), không tự kết luận lừa đảo.
+    Ngưỡng high/low tùy mô hình (XGBoost chọn trên tập validation, xem app/url_model.py)."""
     if prob is None:
         return rule_score
-    bonus = 0.3 if prob >= 0.9 else 0.15 if prob >= 0.7 else 0.0
+    bonus = 0.3 if prob >= high else 0.15 if prob >= low else 0.0
     return min(1.0, round(rule_score + bonus, 2))
-
-
-# ---------- Đặc trưng tự thiết kế (dùng để so sánh trong báo cáo) ----------
-_VOWELS = set("aeiou")
-
-
-def _entropy(s: str) -> float:
-    if not s:
-        return 0.0
-    counts = {c: s.count(c) for c in set(s)}
-    return -sum(n / len(s) * math.log2(n / len(s)) for n in counts.values())
-
-
-def handcrafted_features(host: str) -> list[float]:
-    from .heuristics import BRANDS, LURE_WORDS, SUSPICIOUS_TLDS, _is_official, _tokens
-
-    host = host.lower().removeprefix("www.")
-    labels = host.split(".")
-    name = ".".join(labels[:-1])
-    letters = [c for c in name if c.isalpha()]
-    tokens = _tokens(host)
-    return [
-        len(host),
-        len(labels),
-        host.count("-"),
-        sum(c.isdigit() for c in host),
-        sum(c.isdigit() for c in host) / max(1, len(host)),
-        sum(c in _VOWELS for c in letters) / max(1, len(letters)),
-        _entropy(name),
-        max((len(x) for x in labels), default=0),
-        len(labels[-1]),
-        float(labels[-1] in SUSPICIOUS_TLDS),
-        float(any(any(t.startswith(b) for t in tokens) and not _is_official(host, o) for b, o in BRANDS.items())),
-        float(any(w in t for t in tokens for w in LURE_WORDS)),
-        float("xn--" in host),
-        float(bool(re.search(r"\d{4,}", host))),
-        float(is_ip(host)),
-        float(any(host.endswith(s) for s in ("firebaseapp.com", "web.app", "weebly.com", "wixsite.com",
-                                              "godaddysites.com", "000webhostapp.com", "github.io",
-                                              "netlify.app", "vercel.app", "pages.dev", "glitch.me"))),
-        float(len(labels) > 3),
-        float(bool(re.search(r"(.)\1{3,}", host))),
-    ]

@@ -70,6 +70,7 @@
 | Endpoint | Làm gì |
 |---|---|
 | `POST /analyze` | Kiểm tra 1 trang/URL. Trường `kind`: `page` (extension), `qr`, `manual` (dán vào web) |
+| `POST /predict-url` | Chỉ mô hình học máy chấm tên miền: `{label, probability, reasons[], model, used_in_analyze}` (để thử/so sánh; kết luận đầy đủ dùng `/analyze`) |
 | `POST /analyze-email` | Kiểm tra email hoặc tin nhắn SMS (tin nhắn = email chỉ có `body`) |
 | `POST /report` | Người dùng báo sai |
 | `GET /admin/stats`, `/admin/events`, `/admin/reports`, `/admin/lists/{whitelist|blacklist}` | Cho dashboard, cần header `X-Admin-Token` |
@@ -254,6 +255,18 @@ Khóa cache email gồm cả danh sách link.
   Recall tụt 0.640 → 0.512; danh sách phổ biến (trừ nền tảng bị lạm dụng, lấy từ tập train) gần như không mất
   Recall (0.639). Bộ luật vẫn chạy với các trang này.
 - **ML chạy bằng Python thuần từ file JSON:** không phải cài scikit-learn trên Render (nhẹ, build nhanh).
+- **Mô hình tên miền là XGBoost (nhánh `ai-features`, 28/10/2026)** thay Logistic Regression: n-gram ký tự +
+  18 đặc trưng (`app/url_features.py`, dùng chung train/chạy). Cùng cách chia test: luồng thật Recall 0.641 → 0.656,
+  Precision 0.986 → 0.991, FPR 0.6% → 0.4%. Ngưỡng cộng 0.3 điểm = 0.80, chọn trên **validation** (10% của train).
+  Chấm bằng Python thuần (`app/url_model.py`, 17 MB RAM; thư viện xgboost cần ~130 MB), lệch xgboost < 1e-6;
+  lý do kiểu SHAP (Saabas) hiện trong kết quả. Train lại: `python -m eval.train_url_xgb <PhiUSIIL.csv>` (~3 phút)
+  → `eval/results/URL_MODEL_REPORT.md`. Xóa `app/url_model.json` thì server tự quay về mô hình LR cũ.
+- **Dữ liệu trợ lý chat sinh bằng Qwen3 (Apache 2.0) trên Kaggle, không dùng Gemini:** điều khoản Gemini API
+  (28/04/2026) cấm "use the Services to develop models that compete with the Services" (vùng xám) và gói miễn phí
+  cho Google dùng nội dung gửi lên. Bản nháp phải được duyệt tay (`training/chat_data/review.html`) mới vào train.
+  Công cụ và quy trình: `training/chat_data/README.md`; notebook: `training/kaggle/generate_drafts.ipynb`.
+- **Học máy không chấm đúng tên máy nơi người dùng tự đăng nội dung** (docs.google.com, drive.google.com,
+  gist.github.com): trang thật và giả cùng tên máy, chấm tên máy không phân biệt được (`service.ml_skipped`).
 - **Gemini chỉ gọi khi cần** (có form và điểm < 0.6): tiết kiệm hạn mức, giảm độ trễ.
 - **Riêng tư:** chỉ gửi chữ trên trang khi trang có form, và không bao giờ gửi với hộp thư/nhắn tin
   (Gmail, Outlook, Zalo web...); `events` không lưu tên của trang an toàn người dùng tự mở (chỉ đếm);
@@ -323,3 +336,40 @@ thức của hãng — hãng không công bố danh sách đầy đủ):
 | `d86e616` | Danh sách đen tự cập nhật từ OpenPhish |
 | `dcf7417` | Tự học từ báo cáo cộng đồng |
 | `89c91fb` | Quét QR bằng camera + PWA |
+
+## 10. Tiến độ kế hoạch AI (nhánh `ai-features`) — cập nhật 29/10/2026
+
+Kế hoạch gốc: `PHISHGUARD_AI_PLAN.md` (8 giai đoạn). Thứ tự đã thống nhất: 1 → 2 → 3 → 4 → 6 → 5 → quiz → 7 → 8.
+Làm trên nhánh `ai-features` (Render chỉ deploy `main`, nên bản chạy thật không bị ảnh hưởng).
+
+| Giai đoạn | Trạng thái |
+|---|---|
+| 0. Khảo sát kiến trúc | Xong |
+| 1. Mô hình URL XGBoost | **Xong** (xem mục 6). Báo cáo: `backend/eval/results/URL_MODEL_REPORT.md` |
+| 2. Dữ liệu trợ lý chat | **Đang làm** — đã sinh 2.749 bản nháp bằng Qwen3-14B trên Kaggle (`training/chat_data/data/drafts.jsonl`, đã bỏ trùng → `to_review.jsonl` 2.615 mẫu). Bước tiếp: chấm sơ bộ bằng Qwen3-32B rồi duyệt |
+| 3–8 | Chưa làm |
+
+**Việc tiếp theo (theo thứ tự):**
+1. Kaggle: notebook mới → import `training/kaggle/judge_drafts.ipynb` (bản code `76633d7e`) → GPU T4 x2, Internet On →
+   chạy ô 1–5 với `LIMIT = 30`, xem phân bố điểm, chỉnh tiêu chí (`judge.py`, `common.FACTS`) nếu cần →
+   `LIMIT = 0` chấm hết → tải `judged.jsonl` về `training/chat_data/data/` → **Stop session**.
+2. Duyệt: mở `training/chat_data/review.html` bằng Chrome → chọn `data/judged.jsonl` → ① đọc kỹ mẫu điểm ≤ 3,
+   ② kiểm tra ngẫu nhiên ≥ 10% mẫu điểm ≥ 4, ③ chấp nhận phần còn lại → "Tải về reviewed.jsonl" vào `data/`.
+   Mục tiêu ~1.500 mẫu tốt (knowledge 600, scan 350, multi_turn 250, out_of_scope 150, injection 150).
+3. `python check.py data/reviewed.jsonl --split` → `train/val/test.jsonl`.
+4. Giai đoạn 3: notebook fine-tune Unsloth + QLoRA (Qwen3 ~4B) → GGUF Q4_K_M.
+5. Khi đưa lên bản chạy thật: gộp `ai-features` vào `main`, chạy `scripts.seed` (whitelist mới: ngân hàng VN, render.com,
+   trang PhishGuard).
+
+**Kinh nghiệm Kaggle (đã gặp):**
+- GPU bị mờ → phải xác minh số điện thoại tài khoản Kaggle.
+- `pip install vllm` kéo PyTorch CUDA 13, lệch TorchAudio có sẵn → `pip uninstall -y torchaudio` (ô 3 đã tự làm).
+- T4 không có bfloat16 → vLLM chạy `--dtype half`.
+- Dataset tải lên hay bị kẹt phiên bản cũ → notebook **nhúng sẵn** code + dữ liệu (`training/kaggle/build_notebook.py`;
+  tiêu đề notebook ghi "bản code" để biết đang chạy bản nào). Sửa code thì chạy lại script này rồi import lại.
+- Xong việc bấm **Stop session**; **đừng Save Version** (mặc định chạy lại toàn bộ notebook, tốn giờ GPU).
+- Tốc độ sinh nháp Qwen3-14B-AWQ, 32 luồng: ~55 mẫu/phút (2.770 mẫu ≈ 1 giờ).
+
+**Quyết định:** không dùng Gemini hay Claude để sinh/chấm/sửa dữ liệu huấn luyện (điều khoản của cả hai hạn chế dùng
+để phát triển model khác) → dùng Qwen3 (Apache 2.0). Bản nháp phải được người duyệt; mẫu "chấp nhận theo điểm"
+được đánh dấu `auto_accepted` và không vào tập test.

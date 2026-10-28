@@ -309,6 +309,49 @@ def test_ml_still_scores_abused_platform(host):
     assert not is_popular(host)
 
 
+@pytest.mark.parametrize("host", ["docs.google.com", "drive.google.com", "gist.github.com"])
+def test_ml_skips_exact_user_content_host(host):
+    # Trang thật và trang lừa đảo dùng chung tên máy này: chấm tên máy không phân biệt được.
+    req = AnalyzeRequest(url=f"https://{host}/", hostname=host, protocol="https:")
+    assert not any(b.layer == "ml" for b in apply_ml(req, run_heuristics(req)).breakdown)
+
+
+def test_ml_still_scores_name_chosen_on_user_content():
+    req = AnalyzeRequest(url="https://paypal-login-verify.github.io/", hostname="paypal-login-verify.github.io",
+                         protocol="https:")
+    assert any(b.layer == "ml" for b in apply_ml(req, run_heuristics(req)).breakdown)
+
+
+# ---------------- XGBoost (app/url_model.py) ----------------
+from app import url_model
+
+
+def test_url_model_matches_xgboost():
+    # Python thuần phải ra đúng như thư viện xgboost lúc xuất mô hình (eval/train_url_xgb.py ghi "checks").
+    assert url_model.loaded()
+    for host, prob in url_model._model["checks"]:
+        assert url_model.predict(host) == pytest.approx(prob, abs=1e-4), host
+
+
+def test_url_model_explains_with_readable_reasons():
+    reasons = [name for name, _ in url_model.explain("secure-vietcombank-xacminh.top")]
+    assert "đuôi tên miền hay bị lạm dụng" in reasons and "chứa tên thương hiệu" in reasons
+    req = AnalyzeRequest(url="https://secure-vietcombank-xacminh.top/", hostname="secure-vietcombank-xacminh.top",
+                         protocol="https:")
+    ml_reason = next(b.label for b in apply_ml(req, run_heuristics(req)).breakdown if b.layer == "ml")
+    assert "đuôi tên miền hay bị lạm dụng" in ml_reason
+
+
+def test_predict_url_endpoint():
+    c, _ = make_client()
+    r = c.post("/predict-url", json={"url": "https://secure-vietcombank-xacminh.top/login"}).json()
+    assert r["label"] == "phishing" and r["probability"] > 0.9 and r["model"] == "xgboost" and r["reasons"]
+    r = c.post("/predict-url", json={"url": "shopee.vn"}).json()
+    assert r["used_in_analyze"] is False  # chính chủ: /analyze không cộng điểm học máy
+    r = c.post("/predict-url", json={"url": "http://192.168.1.1/"}).json()
+    assert r["probability"] is None and r["label"] == "safe"
+
+
 def test_ml_bonus_is_capped():
     assert ml.combine(0.0, 0.99) == 0.3 and ml.combine(0.5, 0.75) == 0.65 and ml.combine(0.2, None) == 0.2
 
@@ -501,8 +544,8 @@ def test_parse_feed_keeps_exact_hosts_and_skips_trusted():
 # ---------------- Cộng đồng báo cáo ----------------
 def test_community_reports_need_distinct_people():
     c, db = make_client()
-    body = {"url": "https://shady-shop.example/", "hostname": "shady-shop.example", "kind": "phishing"}
-    page_req = payload("https://shady-shop.example/", "shady-shop.example")
+    body = {"url": "https://sunflower-bakery.com/", "hostname": "sunflower-bakery.com", "kind": "phishing"}
+    page_req = payload("https://sunflower-bakery.com/", "sunflower-bakery.com")
     for _ in range(5):  # một người bấm 5 lần vẫn chỉ tính 1
         c.post("/report", json=body, headers={"X-Forwarded-For": "198.51.100.1"})
     assert c.post("/analyze", json=page_req).json()["verdict"] == "safe"

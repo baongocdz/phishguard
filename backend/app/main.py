@@ -12,7 +12,8 @@ from . import admin, gemini_client, service, threatfeeds
 from .config import settings
 from .deps import get_db
 from .rate_limit import client_ip, limit_by_ip
-from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest
+from .schemas import (AnalyzeRequest, AnalyzeResponse, EmailRequest, PredictUrlRequest, PredictUrlResponse,
+                      ReportRequest)
 
 WEB_DIR = Path(__file__).parent / "web"
 EVAL_DIR = Path(__file__).parent.parent / "eval" / "results"
@@ -88,6 +89,13 @@ async def analyze_email(req: EmailRequest, db=Depends(get_db)):
     result = await service.analyze_email(db, req)
     await service.record_event(db, "email", service.sender_domain(req), result)
     return result
+
+
+@app.post("/predict-url", response_model=PredictUrlResponse, dependencies=[Depends(limit_by_ip)])
+async def predict_url(req: PredictUrlRequest):
+    """Chỉ mô hình học máy chấm tên miền (không qua luật, danh sách, Gemini) — để thử / so sánh mô hình.
+    Kết luận đầy đủ dùng /analyze."""
+    return service.predict_url(req.url)
 
 
 @app.post("/report", dependencies=[Depends(limit_by_ip)])

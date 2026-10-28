@@ -18,6 +18,8 @@ WHITELIST = [
     "mbbank.com.vn", "tpb.vn", "acb.com.vn", "vpbank.com.vn", "sacombank.com.vn", "hdbank.com.vn", "vib.com.vn",
     "shb.com.vn", "ocb.com.vn", "msb.com.vn", "seabank.com.vn", "vnpay.vn", "zalopay.vn", "momo.vn", "zalo.me", "viettel.vn", "fpt.com.vn", "vnpt.vn",
     "chinhphu.vn", "tdmu.edu.vn",
+    # Chính trang PhishGuard (onrender.com là nơi ai cũng đăng web được nên chỉ tin đúng tên máy này) và Render.
+    "phishguard-backend-g3w0.onrender.com", "render.com",
 ]
 BLACKLIST = ["phish-sample.test"]  # Sau này nạp từ PhishTank/OpenPhish
 

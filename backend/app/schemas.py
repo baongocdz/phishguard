@@ -58,6 +58,20 @@ class EmailRequest(BaseModel):
     links: list[EmailLink] = Field(default_factory=list, max_length=300)
 
 
+class PredictUrlRequest(BaseModel):
+    url: str = Field(max_length=2048)  # URL đầy đủ hoặc chỉ tên miền
+
+
+class PredictUrlResponse(BaseModel):
+    """Kết quả của riêng mô hình học máy (không phải kết luận cuối như /analyze)."""
+
+    label: Literal["safe", "suspicious", "phishing"]
+    probability: float | None  # None: là địa chỉ IP / chưa có mô hình
+    reasons: list[str]          # đặc trưng đẩy điểm về phía lừa đảo nhiều nhất
+    model: str                  # "xgboost" hoặc "logistic-regression"
+    used_in_analyze: bool       # False: /analyze bỏ qua học máy với tên miền này (chính chủ, phổ biến...)
+
+
 class ReportRequest(BaseModel):
     """Người dùng báo kết quả sai: trang thật bị chặn nhầm, hoặc trang lừa đảo bị bỏ sót."""
 
