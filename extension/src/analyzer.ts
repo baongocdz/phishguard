@@ -61,6 +61,10 @@ function isOfficial(host: string, domains: string[]): boolean {
 // Giữ đồng bộ với lookalike_brand trong backend/app/heuristics.py.
 const HOMOGLYPHS: [string, string][] = [["rn", "m"], ["vv", "w"]];
 
+// Từ thông dụng / thương hiệu thật chỉ cách tên thương hiệu 1 ký tự (cloud ~ icloud, finance ~ binance,
+// vpbank ~ tpbank). Giữ giống LOOKALIKE_WORDS trong backend/app/heuristics.py.
+const LOOKALIKE_WORDS = new Set(["cloud", "finance", "vpbank", "otpbank"]);
+
 function editDistance(a: string, b: string, limit: number): number {
   if (Math.abs(a.length - b.length) > limit) return limit + 1;
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -83,7 +87,7 @@ function lookalikeBrand(host: string, parts: string[]): string | undefined {
     for (const t of parts) {
       const fixed = HOMOGLYPHS.reduce((s, [fake, real]) => s.split(fake).join(real), t);
       if (fixed !== t && fixed.startsWith(b)) return b;
-      if (t !== b && editDistance(t, b, limit) <= limit) return b;
+      if (t !== b && !LOOKALIKE_WORDS.has(t) && editDistance(t, b, limit) <= limit) return b;
     }
   }
   return undefined;

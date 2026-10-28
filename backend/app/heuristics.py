@@ -33,20 +33,23 @@ class Tally:
 BRANDS: dict[str, list[str]] = {
     "paypal": ["paypal.com", "paypal.me", "paypalobjects.com", "paypal-community.com"],
     # Apple gửi thư từ email.apple.com, id.apple.com, insideapple.apple.com (đều thuộc apple.com); apple.co là link rút gọn.
-    "apple": ["apple.com", "icloud.com", "apple.co", "me.com", "itunes.com", "mzstatic.com"],
-    "icloud": ["icloud.com", "apple.com"],
+    "apple": ["apple.com", "icloud.com", "apple.co", "me.com", "itunes.com", "mzstatic.com", "apple.com.cn",
+              "icloud-content.com"],
+    "icloud": ["icloud.com", "apple.com", "icloud-content.com"],
     # Cảnh báo bảo mật gửi từ accountprotection.microsoft.com; aka.ms là link rút gọn của Microsoft.
     "microsoft": ["microsoft.com", "microsoftonline.com", "live.com", "office.com", "office365.com", "outlook.com",
                   "microsoft365.com", "aka.ms", "msn.com", "bing.com", "skype.com", "xbox.com", "windows.com",
-                  "azure.com"],
+                  "azure.com", "microsoftstore.com"],
     "office365": ["office365.com", "office.com", "microsoft.com"],
     "outlook": ["outlook.com", "live.com", "office.com", "office365.com"],
     # .gle là đuôi riêng của Google: c.gle, goo.gle (link rút gọn trong thư của Google), g.co.
+    # .google / .youtube cũng là đuôi riêng (blog.google, ai.google, blog.youtube): chỉ Google đăng ký được.
     "google": ["google.com", "google.com.vn", "googleusercontent.com", "googleblog.com", "c.gle", "g.co", "goo.gle",
                "googleadservices.com", "googlesyndication.com", "doubleclick.net", "gstatic.com", "googleapis.com",
-               "withgoogle.com", "android.com", "youtube.com", "gmail.com"],
+               "withgoogle.com", "android.com", "youtube.com", "gmail.com", "google", "google.org", "googleplay.com",
+               "googledrive.com"],
     "gmail": ["gmail.com", "google.com"],
-    "youtube": ["youtube.com", "youtu.be", "ytimg.com", "google.com"],
+    "youtube": ["youtube.com", "youtu.be", "ytimg.com", "google.com", "youtube", "youtube-nocookie.com"],
     # Facebook gửi thông báo từ facebookmail.com (cả em.facebookmail.com); fb.me, fb.watch là link rút gọn.
     "facebook": ["facebook.com", "fb.com", "facebook.net", "fbcdn.net", "facebookmail.com", "fb.me", "fb.watch",
                  "messenger.com", "meta.com", "facebookcorewwwi.onion"],
@@ -70,7 +73,7 @@ BRANDS: dict[str, list[str]] = {
     "bidv": ["bidv.com.vn"],
     "mbbank": ["mbbank.com.vn"],
     "tpbank": ["tpb.vn", "tpbank.vn"],
-    "sacombank": ["sacombank.com", "sacombank.com.vn"],
+    "sacombank": ["sacombank.com", "sacombank.com.vn", "isacombank.com.vn"],
     "momo": ["momo.vn"],
 }
 
@@ -138,6 +141,11 @@ def _tokens(host: str) -> list[str]:
 # Cặp ký tự trông giống một chữ khác: vietcornbank -> vietcombank, vvebsite -> website.
 HOMOGLYPHS = [("rn", "m"), ("vv", "w")]
 
+# Từ thông dụng / thương hiệu thật chỉ cách tên thương hiệu 1 ký tự: cloud.mongodb.com không phải nhái "icloud",
+# finance.gov.au không nhái "binance", vpbank.com.vn / otpbank.com.ua không nhái "tpbank". Rà trên 134.792 tên miền
+# hợp lệ của PhiUSIIL.
+LOOKALIKE_WORDS = {"cloud", "finance", "vpbank", "otpbank"}
+
 
 def _edit_distance(a: str, b: str, limit: int) -> int:
     """Khoảng cách Levenshtein, dừng sớm khi vượt limit (trả limit + 1)."""
@@ -166,7 +174,7 @@ def lookalike_brand(host: str, tokens: list[str]) -> str | None:
                 fixed = fixed.replace(fake, real)
             if fixed != t and fixed.startswith(b):
                 return b
-            if t != b and _edit_distance(t, b, limit) <= limit:
+            if t != b and t not in LOOKALIKE_WORDS and _edit_distance(t, b, limit) <= limit:
                 return b
     return None
 

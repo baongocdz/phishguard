@@ -132,8 +132,30 @@ khớp quá rộng (`zalora` bị coi là `zalo`); link theo dõi của dịch v
 và ngược lại, phải **không tin** nơi người dùng tự đăng nội dung trên tên miền hãng lớn (Google Sites/Docs, GitHub
 Pages, S3, SharePoint) vì kẻ gian dựng trang lừa đảo ở đó.
 
-**Lưu ý khi trình bày:** đây là bộ mẫu do em dựng (68 ca), dùng để **phát hiện và chống tái phát** lỗi báo nhầm,
+**Lưu ý khi trình bày:** đây là bộ mẫu do em dựng (nay 87 ca), dùng để **phát hiện và chống tái phát** lỗi báo nhầm,
 không phải bộ đánh giá độc lập như PhiUSIIL.
+
+## 3c. Rà soát báo nhầm lần 2 (28/10/2026)
+
+Sau khi trang quản trị `cloud.mongodb.com` bị báo đáng ngờ, em rà theo hai cách:
+- Chạy bộ luật trên **toàn bộ 134.792 tên miền hợp lệ** của PhiUSIIL: luật chỉ báo 64 tên miền (0,05%), trong đó có
+  lỗi "tên miền na ná" với từ thông dụng (`cloud` ~ `icloud`, `finance` ~ `binance`) và thương hiệu thật (`vpbank`,
+  `otpbank` ~ `tpbank`).
+- Chấm **261 trang thật hay dùng** (trang quản trị cloud, công cụ lập trình, ngân hàng, báo chí, trường học, cơ quan
+  nhà nước VN, kể cả subdomain đăng nhập): 32 trang bị báo nhầm, phần lớn do học máy.
+
+Phát hiện quan trọng: PhiUSIIL **lệch về subdomain**: chỉ 3,9% tên miền hợp lệ có subdomain, trong khi lừa đảo là 55%,
+nên mô hình chấm `mail.yahoo.com` 100% lừa đảo. Các cách đã thử (đo trên tập test, cùng cách chia 80/20):
+
+| Cách | Recall | FPR (PhiUSIIL) | Trang thật báo nhầm |
+|---|---|---|---|
+| Ban đầu | 0,640 | 0,571% | 32/261 |
+| Học máy chỉ chấm tên miền gốc | 0,512 | 0,523% | 12/261 |
+| Học máy bỏ qua Tranco top 10.000, trừ nền tảng bị lạm dụng (chọn) | **0,639** | **0,530%** | **4/261** |
+
+Danh sách nền tảng bị lạm dụng (firebaseapp.com, web.app, weebly.com...) lấy từ **tập train** để không "nhìn trộm" tập
+test. Lưu ý: tên miền hợp lệ của PhiUSIIL vốn là trang phổ biến, nên mức giảm FPR trên PhiUSIIL có thể hơi lạc quan;
+con số đáng tin hơn là 32 → 4 trên danh sách trang thật.
 
 ---
 

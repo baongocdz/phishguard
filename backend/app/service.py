@@ -12,6 +12,7 @@ from .gemini_client import GeminiOutput
 from .email_rules import DOMAIN_IN_TEXT, _domain_of, is_official_and_clean, run_email_rules
 from . import domain_age, ml, safebrowsing, shortlinks, text_ml
 from .heuristics import BRANDS, is_trusted_host, run_heuristics, verdict_of
+from .popular import is_popular
 from .schemas import AnalyzeRequest, AnalyzeResponse, EmailRequest, ReportRequest, Signal
 
 log = logging.getLogger("phishguard.service")
@@ -19,7 +20,7 @@ log = logging.getLogger("phishguard.service")
 SEVERITY = {"safe": 0, "suspicious": 1, "phishing": 2}
 # Tăng khi đổi cách chấm hoặc định dạng kết quả để bỏ qua kết quả cũ trong cache
 # (v2: có breakdown, tên miền na ná, Safe Browsing, mạng nội bộ).
-CACHE_VERSION = "v7"
+CACHE_VERSION = "v8"
 
 
 # Đuôi chỉ cơ quan nhà nước / trường học mới đăng ký được (VNNIC cấp có kiểm tra): mô hình học máy học từ tên miền
@@ -30,9 +31,10 @@ RESTRICTED_SUFFIX = re.compile(r"\.(gov|edu|ac|mil|int)(\.[a-z]{2})?$")
 def apply_ml(req: AnalyzeRequest, result: AnalyzeResponse) -> AnalyzeResponse:
     """Cộng điểm từ mô hình ML (xem app/ml.py và eval/results/REPORT.md).
     Bỏ qua tên miền chính chủ của các thương hiệu: chính vì hay bị giả mạo nên
-    mô hình dễ chấm nhầm tên miền thật (vd shopee.vn)."""
+    mô hình dễ chấm nhầm tên miền thật (vd shopee.vn). Bỏ qua cả tên miền phổ biến
+    (mail.yahoo.com, coinbase.com — xem scripts/build_popular.py)."""
     host = req.hostname.lower()
-    if is_trusted_host(host) or RESTRICTED_SUFFIX.search(host):
+    if is_trusted_host(host) or RESTRICTED_SUFFIX.search(host) or is_popular(host):
         return result
     prob = ml.predict(host)
     score = ml.combine(result.score, prob)

@@ -15,7 +15,8 @@ WHITELIST = [
     "zingnews.vn", "baomoi.com", "cafef.vn", "shopee.vn", "tiki.vn", "lazada.vn",
     "thegioididong.com", "dienmayxanh.com", "fptshop.com.vn", "cellphones.com.vn",
     "vietcombank.com.vn", "techcombank.com.vn", "vietinbank.vn", "bidv.com.vn", "agribank.com.vn",
-    "mbbank.com.vn", "tpb.vn", "momo.vn", "zalo.me", "viettel.vn", "fpt.com.vn", "vnpt.vn",
+    "mbbank.com.vn", "tpb.vn", "acb.com.vn", "vpbank.com.vn", "sacombank.com.vn", "hdbank.com.vn", "vib.com.vn",
+    "shb.com.vn", "ocb.com.vn", "msb.com.vn", "seabank.com.vn", "vnpay.vn", "zalopay.vn", "momo.vn", "zalo.me", "viettel.vn", "fpt.com.vn", "vnpt.vn",
     "chinhphu.vn", "tdmu.edu.vn",
 ]
 BLACKLIST = ["phish-sample.test"]  # Sau này nạp từ PhishTank/OpenPhish

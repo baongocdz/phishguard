@@ -143,12 +143,17 @@ LEGIT_HOSTS = [
     "zalora.com.vn", "applebees.com", "appleton.org", "shopeefood.vn", "zalopay.vn", "googleadservices.com",
     "facebookmail.com", "amazon.co.uk", "tdmu.edu.vn", "dichvucong.gov.vn", "forms.gle", "c.gle", "momo.vn",
     "sacombank.com", "mbbank.com.vn", "microsoft365.com", "apple.co", "youtu.be", "shp.ee", "lzd.co",
-    "facebookcorewwwi.onion", "amazonses.com", "googleapis.com",
+    "facebookcorewwwi.onion", "amazonses.com", "googleapis.com", "cloud.mongodb.com", "cloud.oracle.com",
+    # Báo nhầm tìm được khi rà 134.792 tên miền hợp lệ của PhiUSIIL và các trang hay dùng.
+    "finance.gov.au", "vpbank.com.vn", "otpbank.com.ua", "isacombank.com.vn", "blog.google", "ai.google",
+    "blog.youtube", "google.org", "googleplay.com", "youtube-nocookie.com", "apple.com.cn", "icloud-content.com",
+    "microsoftstore.com",
 ]
 PHISH_HOSTS = [
     "vietcombank-xacminh.top", "faceb00k-login.com", "appleid-verify.com", "zalopay-nhanqua.xyz",
     "momopay-hoantien.com", "shoppe-sale.vn", "paypal.github.io", "paypal-login.s3.amazonaws.com",
-    "googlesupport-verify.com", "facebookmail-security.com",
+    "googlesupport-verify.com", "facebookmail-security.com", "lcloud-verify.com", "blnance.com", "tpbamk.vn",
+    "google.verify-account.top",
 ]
 
 

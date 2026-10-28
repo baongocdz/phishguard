@@ -278,6 +278,7 @@ def test_admin_requires_token(monkeypatch):
 
 # ---------------- Mô hình ML ----------------
 from app import ml
+from app.popular import is_popular
 from app.service import apply_ml
 
 
@@ -292,6 +293,20 @@ def test_ml_model_flags_phishing_domain():
 def test_ml_skips_official_brand_domain():
     req = AnalyzeRequest(url="https://shopee.vn/", hostname="shopee.vn", protocol="https:")
     assert apply_ml(req, run_heuristics(req)).verdict == "safe"
+
+
+@pytest.mark.parametrize("host", ["mail.yahoo.com", "dash.cloudflare.com", "account.mongodb.com", "coinbase.com",
+                                  "steamcommunity.com", "cloud.digitalocean.com"])
+def test_ml_skips_popular_domain(host):
+    # Học máy chấm các trang này >= 90% (PhiUSIIL hầu như không có subdomain hợp lệ) — xem scripts/build_popular.py.
+    req = AnalyzeRequest(url=f"https://{host}/", hostname=host, protocol="https:")
+    assert not any(b.layer == "ml" for b in apply_ml(req, run_heuristics(req)).breakdown)
+
+
+@pytest.mark.parametrize("host", ["login-verify.web.app", "secure-update.weebly.com", "paypal-check.github.io"])
+def test_ml_still_scores_abused_platform(host):
+    # Nền tảng nằm trong top Tranco nhưng hay chứa trang lừa đảo không được vào danh sách phổ biến.
+    assert not is_popular(host)
 
 
 def test_ml_bonus_is_capped():

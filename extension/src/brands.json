@@ -13,11 +13,14 @@
       "apple.co",
       "me.com",
       "itunes.com",
-      "mzstatic.com"
+      "mzstatic.com",
+      "apple.com.cn",
+      "icloud-content.com"
     ],
     "icloud": [
       "icloud.com",
-      "apple.com"
+      "apple.com",
+      "icloud-content.com"
     ],
     "microsoft": [
       "microsoft.com",
@@ -33,7 +36,8 @@
       "skype.com",
       "xbox.com",
       "windows.com",
-      "azure.com"
+      "azure.com",
+      "microsoftstore.com"
     ],
     "office365": [
       "office365.com",
@@ -62,7 +66,11 @@
       "withgoogle.com",
       "android.com",
       "youtube.com",
-      "gmail.com"
+      "gmail.com",
+      "google",
+      "google.org",
+      "googleplay.com",
+      "googledrive.com"
     ],
     "gmail": [
       "gmail.com",
@@ -72,7 +80,9 @@
       "youtube.com",
       "youtu.be",
       "ytimg.com",
-      "google.com"
+      "google.com",
+      "youtube",
+      "youtube-nocookie.com"
     ],
     "facebook": [
       "facebook.com",
@@ -184,7 +194,8 @@
     ],
     "sacombank": [
       "sacombank.com",
-      "sacombank.com.vn"
+      "sacombank.com.vn",
+      "isacombank.com.vn"
     ],
     "momo": [
       "momo.vn"

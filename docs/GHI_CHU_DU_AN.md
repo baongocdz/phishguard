@@ -151,7 +151,7 @@ Khóa cache email gồm cả danh sách link.
 ### Test (4 lớp)
 | Lớp | Lệnh | Kiểm tra gì | Số kịch bản |
 |---|---|---|---|
-| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc, link chính chủ Google, **bộ mẫu báo nhầm 68 ca** (`tests/test_corpus.py`) | 139 |
+| Đơn vị backend | `cd backend` → `.venv\Scripts\python -m pytest -q` | Luật, ML, email, cache, admin, rate limit, link rút gọn, Safe Browsing, tuổi tên miền, OpenPhish, cộng đồng, trang cờ bạc, link chính chủ Google, **bộ mẫu báo nhầm 87 ca** (`tests/test_corpus.py`), học máy bỏ qua trang phổ biến | 172 |
 | Extension trong Chrome thật | `cd extension` → `npm run build` → `npm run e2e` | Banner, tooltip, chặn quảng cáo (danh sách + **tab tự bật của mạng lạ** + URL `utm_medium=…popup…`), affiliate, "Mở lần này", công tắc, popup, **Gmail giả lập** (cả mở thư khác không F5), **tab-under, cửa sổ nhỏ**, không chặn nhầm Back/form, **nút quét QR trong popup** (chạy trên bản sao `dist-e2e/` có quyền `<all_urls>` vì Puppeteer không bấm được icon) | 30 |
 | Trang web + dashboard | bật backend ở máy → `npm run web-test -- http://localhost:8000 <mã quản trị>` | 4 tab (tải ảnh QR thật), **camera giả phát video QR**, PWA, báo sai, /about, dashboard, OpenPhish, giao diện 390px | 16 |
 | Server thật | `cd backend` → `.venv\Scripts\python -m scripts.smoke [--admin <mã>]` | Gọi đủ chức năng trên Render | 15–16 |
@@ -218,6 +218,7 @@ Khóa cache email gồm cả danh sách link.
 | `chrome://extensions` báo lỗi "Cannot read properties of undefined (reading 'local')" ở `gmail.js` | Bấm Reload extension khi tab Gmail đang mở: script cũ trên tab mất kết nối (`chrome.storage` = undefined) nhưng vẫn chạy theo MutationObserver | `gmail.ts` kiểm tra `chrome.runtime?.id`, mất kết nối thì tự dừng. **Sau khi Reload extension, F5 các tab đang mở** |
 | Tự bấm banner quảng cáo trên web phim lậu → vào net88.forum, không cảnh báo | Bấm vào link thật nên phần "tab tự bật" (cố ý) bỏ qua; luật `utm_medium` chỉ khớp đúng `popup` | `POP_MARKER` khớp `…_popup_…`; backend thêm luật trang cờ bạc (banner cam). `CACHE_VERSION` → v4 |
 | Quét QR tạo từ me-qr.com ra `q.me-qr.com/...` chứ không phải link đã nhập, chấm "An toàn" | Mã QR **động**: trong mã chỉ có link trung gian, mở ra mới chuyển hướng (302) tới link thật. Không phải lỗi quét; nhưng server không mở link trung gian này | Thêm các dịch vụ QR động (`q.me-qr.com`, `qrco.de`, `qr.codes`, `l.ead.me`, `qr1.be`, `qrfy.io`, `qr.page`) vào `SHORTENERS` → lý do hiện "thực ra dẫn tới <đích thật>" và chấm theo đích thật |
+| `cloud.mongodb.com` (trang quản trị Atlas) bị báo đáng ngờ 0.55 → **rà soát báo nhầm lần 2** (28/10/2026): 32/261 trang thật hay dùng bị báo nhầm (mail.yahoo.com, dash.cloudflare.com, login.salesforce.com, coinbase.com, vpbank.com.vn, googleplay.com...) | (1) "Tên miền na ná": `cloud` cách `icloud` 1 ký tự, `finance` ~ `binance`, `vpbank`/`otpbank` ~ `tpbank`; (2) thiếu tên miền chính chủ (đuôi `.google`/`.youtube`, googleplay.com, microsoftstore.com, icloud-content.com, isacombank.com.vn...); (3) **học máy lệch vì dữ liệu**: trong PhiUSIIL chỉ 3,9% tên miền hợp lệ có subdomain (lừa đảo 55%) → chấm ≥ 90% cho mail.yahoo.com, gist.github.com...; trang hay bị giả mạo (coinbase, steamcommunity) bị "nhớ" là lừa đảo | (1) `LOOKALIKE_WORDS` (backend + extension), tìm bằng cách chạy luật trên **134.792 tên miền hợp lệ** của PhiUSIIL; (2) bổ sung `BRANDS`; (3) `app/popular_domains.txt`: Tranco top 10.000 (danh sách GQ3LK) trừ 101 nền tảng bị lạm dụng (≥ 3 trang lừa đảo trong tập **train**: firebaseapp.com, web.app, weebly.com...) → học máy không cộng điểm (`app/popular.py`, sinh lại bằng `scripts/build_popular.py`). Whitelist mẫu thêm ngân hàng VN (ACB, VPBank...). Kết quả: trang thật báo nhầm 32 → 4 (3 cố ý: gist.github.com, sharepoint.com, app.netlify.com — nơi người dùng tự đăng nội dung; online.acb.com.vn hết sau khi chạy `scripts.seed`); PhiUSIIL test: Recall 0.640 → 0.639, FPR 0.571% → 0.530%. `CACHE_VERSION` → v8 |
 | Code ghi qua lệnh shell bị mất dấu gạch chéo ngược (regex hỏng, ký tự xuống dòng `\n` bị biến thành xuống dòng thật) | Heredoc trong công cụ shell | Sửa bằng công cụ Edit; luôn chạy test **trước** khi commit |
 
 ---
@@ -248,6 +249,10 @@ Khóa cache email gồm cả danh sách link.
   `https://www.<domain>` không có đường dẫn → train trên URL đầy đủ sẽ đạt ~100% vô nghĩa.
 - **ML là "điểm cộng" tối đa 0.3, không tự kết luận lừa đảo:** ML một mình chặn nhầm 6.3%; cộng vào luật
   giữ chặn nhầm 0.6%. Trang bị ML nghi ngờ sẽ được Gemini xem tiếp.
+- **Học máy không cộng điểm cho trang phổ biến (Tranco top 10.000):** mô hình học từ PhiUSIIL nên coi
+  subdomain là dấu hiệu lừa đảo (mail.yahoo.com 100%). Không bỏ hẳn subdomain vì chỉ chấm tên miền gốc làm
+  Recall tụt 0.640 → 0.512; danh sách phổ biến (trừ nền tảng bị lạm dụng, lấy từ tập train) gần như không mất
+  Recall (0.639). Bộ luật vẫn chạy với các trang này.
 - **ML chạy bằng Python thuần từ file JSON:** không phải cài scikit-learn trên Render (nhẹ, build nhanh).
 - **Gemini chỉ gọi khi cần** (có form và điểm < 0.6): tiết kiệm hạn mức, giảm độ trễ.
 - **Riêng tư:** chỉ gửi chữ trên trang khi trang có form, và không bao giờ gửi với hộp thư/nhắn tin
